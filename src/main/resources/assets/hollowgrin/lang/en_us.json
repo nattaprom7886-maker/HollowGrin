@@ -1,0 +1,12 @@
+{
+  "entity.hollowgrin.hollowgrin": "Mr. Hollowgrin",
+  "item.hollowgrin.hollowgrin_spawn_egg": "Mr. Hollowgrin Spawn Egg",
+  "death.attack.hollowgrin_squeeze": "%1$s was hugged to death by %2$s",
+  "subtitles.hollowgrin.hum": "Someone hums a lullaby",
+  "subtitles.hollowgrin.heartbeat": "Heartbeat",
+  "subtitles.hollowgrin.laugh": "Mr. Hollowgrin laughs",
+  "subtitles.hollowgrin.reveal": "Something cracks open",
+  "subtitles.hollowgrin.jaw": "A jaw stretches wide",
+  "subtitles.hollowgrin.gotcha": "Mr. Hollowgrin: Gotcha!",
+  "subtitles.hollowgrin.squeeze": "Bones creak"
+}

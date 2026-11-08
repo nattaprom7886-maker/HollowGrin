@@ -1,0 +1,25 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="hollowgrin"
+version="1.0.0"
+displayName="Mr. Hollowgrin"
+description='''
+The Gracious Host. One entity, many faces. He walks among villagers, waiting for you to look.
+'''
+
+[[dependencies.hollowgrin]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.hollowgrin]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"

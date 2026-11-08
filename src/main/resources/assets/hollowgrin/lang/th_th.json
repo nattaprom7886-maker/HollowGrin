@@ -1,0 +1,12 @@
+{
+  "entity.hollowgrin.hollowgrin": "คุณยิ้มกลวง (Mr. Hollowgrin)",
+  "item.hollowgrin.hollowgrin_spawn_egg": "ไข่เสก คุณยิ้มกลวง",
+  "death.attack.hollowgrin_squeeze": "%1$s ถูก %2$s กอดจนตาย",
+  "subtitles.hollowgrin.hum": "ใครสักคนฮัมเพลงกล่อมเด็ก",
+  "subtitles.hollowgrin.heartbeat": "เสียงหัวใจเต้น",
+  "subtitles.hollowgrin.laugh": "คุณยิ้มกลวงหัวเราะ",
+  "subtitles.hollowgrin.reveal": "บางสิ่งแตกออก",
+  "subtitles.hollowgrin.jaw": "ขากรรไกรอ้ากว้าง",
+  "subtitles.hollowgrin.gotcha": "คุณยิ้มกลวง: Gotcha!",
+  "subtitles.hollowgrin.squeeze": "เสียงกระดูกลั่น"
+}
