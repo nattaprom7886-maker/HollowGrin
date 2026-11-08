@@ -43,9 +43,8 @@ public final class HollowSpawner {
         double viewLen = Math.max(0.001D, Math.sqrt(view.x * view.x + view.z * view.z));
 
         for (int i = 0; i < 24; i++) {
-            BlockPos base = villagers.isEmpty()
-                    ? player.blockPosition()
-                    : villagers.get(rnd.nextInt(villagers.size())).blockPosition();
+            Villager source = villagers.isEmpty() ? null : villagers.get(rnd.nextInt(villagers.size()));
+            BlockPos base = source == null ? player.blockPosition() : source.blockPosition();
             double angle = rnd.nextDouble() * Math.PI * 2.0D;
             double radius = villagers.isEmpty() ? 14.0D + rnd.nextDouble() * 8.0D : 3.0D + rnd.nextDouble() * 7.0D;
             int x = Mth.floor(base.getX() + Math.cos(angle) * radius);
@@ -75,6 +74,9 @@ public final class HollowSpawner {
             }
             host.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, rnd.nextFloat() * 360.0F, 0.0F);
             host.setTargetPlayer(player);
+            if (source != null) {
+                host.setVillagerData(source.getVillagerData());   // identical clothes, profession and badge
+            }
             level.addFreshEntity(host);
             return true;
         }

@@ -33,6 +33,10 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerData;
+import net.minecraft.world.entity.npc.VillagerDataHolder;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.VillagerType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -50,7 +54,7 @@ import java.util.UUID;
  * Nothing here reads or writes any file; the entity does not even save its own state
  * (after a reload it simply re-acquires the nearest player or quietly disappears).
  */
-public class HollowGrinEntity extends Monster {
+public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     public static final int DISGUISE = 0;
     public static final int REVEAL = 1;
     public static final int HOST = 2;
@@ -61,6 +65,10 @@ public class HollowGrinEntity extends Monster {
 
     private static final EntityDataAccessor<Integer> STATE =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.INT);
+
+    /** the villager look he copies (biome clothes + profession + level badge), synced to clients. */
+    private static final EntityDataAccessor<VillagerData> VILLAGER =
+            SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.VILLAGER_DATA);
 
     private static final ResourceKey<DamageType> SQUEEZE =
             ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(HollowGrinMod.MODID, "squeeze"));
@@ -80,6 +88,7 @@ public class HollowGrinEntity extends Monster {
     private int lifeTicks;
     private float grabDamageTaken;
     private boolean releasing;
+    private boolean variantSet;
     private UUID targetId;
 
     public HollowGrinEntity(EntityType<? extends Monster> type, Level level) {
@@ -106,6 +115,7 @@ public class HollowGrinEntity extends Monster {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(STATE, DISGUISE);
+        this.entityData.define(VILLAGER, new VillagerData(VillagerType.PLAINS, VillagerProfession.NONE, 1));
     }
 
     @Override
@@ -115,6 +125,17 @@ public class HollowGrinEntity extends Monster {
             this.stateTicks = 0;
             this.refreshDimensions();
         }
+    }
+
+    @Override
+    public VillagerData getVillagerData() {
+        return this.entityData.get(VILLAGER);
+    }
+
+    @Override
+    public void setVillagerData(VillagerData data) {
+        this.entityData.set(VILLAGER, data);
+        this.variantSet = true;
     }
 
     public int getState() {
@@ -143,7 +164,7 @@ public class HollowGrinEntity extends Monster {
 
     @Override
     public EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
-        return isDisguised() ? EntityDimensions.scalable(0.6F, 1.95F) : EntityDimensions.scalable(0.95F, 2.85F);
+        return isDisguised() ? EntityDimensions.scalable(0.6F, 1.95F) : EntityDimensions.scalable(1.0F, 2.9F);
     }
 
     @Override
@@ -155,7 +176,7 @@ public class HollowGrinEntity extends Monster {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new OpenDoorGoal(this, false));
-        this.goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 40.0F, 1.0F));
+        this.goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.45D) {
             @Override
             public boolean canUse() {
@@ -208,6 +229,11 @@ public class HollowGrinEntity extends Monster {
 
     private void serverLogic() {
         this.lifeTicks++;
+        if (!this.variantSet) {
+            // no villager to copy (spawn egg): dress like the local villagers
+            setVillagerData(new VillagerData(VillagerType.byBiome(this.level().getBiome(this.blockPosition())),
+                    VillagerProfession.NONE, 1));
+        }
         int s = getState();
 
         // safety: nobody may ride him unless he is really holding them
@@ -511,8 +537,8 @@ public class HollowGrinEntity extends Monster {
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (isDisguised()) {
-            // a real villager would open a trade screen; he only makes a slightly wrong noise
-            this.playSound(SoundEvents.VILLAGER_AMBIENT, 1.0F, 0.6F);
+            // exactly what an unemployed villager does when you try to trade
+            this.playSound(SoundEvents.VILLAGER_NO, 1.0F, 1.0F);
             return InteractionResult.sidedSuccess(this.level().isClientSide);
         }
         return InteractionResult.PASS;
