@@ -21,6 +21,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -74,6 +76,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private static final EntityDataAccessor<Boolean> TRUE_FORM =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.BOOLEAN);
 
+    /** 0..100: how close the victim is to wrenching free (synced for the HUD bar). */
+    private static final EntityDataAccessor<Integer> STRUGGLE =
+            SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.INT);
+
     private static final ResourceKey<DamageType> SQUEEZE =
             ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(HollowGrinMod.MODID, "squeeze"));
 
@@ -81,8 +87,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private static final int REVEAL_TICKS = 30;
     private static final int HOST_TICKS = 45;
     private static final int GRAB_GOTCHA_AT = 14;
-    private static final int GRAB_SQUEEZE_FROM = 36;
-    private static final int GRAB_KILL_AT = 100;
+    public static final int GRAB_SQUEEZE_FROM = 36;   // screen starts to darken
+    public static final int GRAB_KILL_AT = 140;       // screen fully black = dead
+    private static final float STRUGGLE_GAIN = 6.0F;  // per Spacebar press (max ~10 presses/s accepted)
+    private static final float STRUGGLE_DECAY = 0.55F;// per tick, after a short grace period
 
     private int stateTicks;          // ticks spent in current state (both sides)
     private int stare;               // accumulated "being looked at" ticks
@@ -93,6 +101,8 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private float grabDamageTaken;
     private boolean releasing;
     private boolean variantSet;
+    private float struggleF;
+    private int lastStrugglePress = -10;
     private UUID targetId;
 
     public HollowGrinEntity(EntityType<? extends Monster> type, Level level) {
@@ -120,6 +130,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         super.defineSynchedData();
         this.entityData.define(STATE, DISGUISE);
         this.entityData.define(TRUE_FORM, false);
+        this.entityData.define(STRUGGLE, 0);
         this.entityData.define(VILLAGER, new VillagerData(VillagerType.PLAINS, VillagerProfession.NONE, 1));
     }
 
@@ -153,11 +164,36 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         if (getState() != state) {
             this.entityData.set(STATE, state);
             this.stateTicks = 0;
+            if (state != GRAB) {
+                this.struggleF = 0.0F;
+                this.entityData.set(STRUGGLE, 0);
+            }
         }
     }
 
     public int getStateTicks() {
         return this.stateTicks;
+    }
+
+    public int getStruggle() {
+        return this.entityData.get(STRUGGLE);
+    }
+
+    /** called (server side) for every Spacebar press of the held player. */
+    public void onStruggle(ServerPlayer p) {
+        if (getState() != GRAB || this.releasing || p.getVehicle() != this || this.stateTicks < 8) {
+            return;
+        }
+        if (this.tickCount - this.lastStrugglePress < 2) {
+            return;      // ignore macros / auto-clickers faster than 10 presses per second
+        }
+        this.lastStrugglePress = this.tickCount;
+        this.struggleF = Math.min(100.0F, this.struggleF + STRUGGLE_GAIN);
+        this.entityData.set(STRUGGLE, (int) this.struggleF);
+        if (this.struggleF >= 100.0F) {
+            p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 80, 1));   // a few seconds to run
+            breakGrab();
+        }
     }
 
     public boolean isTrueForm() {
@@ -422,6 +458,8 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
         this.grabDamageTaken = 0.0F;
+        this.struggleF = 0.0F;
+        this.entityData.set(STRUGGLE, 0);
         this.releasing = false;
         t.stopRiding();
         if (t.startRiding(this, true)) {
@@ -451,6 +489,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         }
         if (g == GRAB_GOTCHA_AT) {
             this.playSound(ModSounds.GOTCHA.get(), 2.2F, 1.0F);
+        }
+        if (g > 10 && this.struggleF > 0.0F) {
+            this.struggleF = Math.max(0.0F, this.struggleF - STRUGGLE_DECAY);
+            this.entityData.set(STRUGGLE, (int) this.struggleF);
         }
         if (g >= GRAB_SQUEEZE_FROM && (g - GRAB_SQUEEZE_FROM) % 14 == 0) {
             this.playSound(ModSounds.SQUEEZE.get(), 1.6F, 0.9F + this.random.nextFloat() * 0.2F);

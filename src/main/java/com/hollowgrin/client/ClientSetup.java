@@ -6,6 +6,7 @@ import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -25,6 +26,11 @@ public final class ClientSetup {
         event.registerLayerDefinition(HOST_LAYER, HostModel::createBodyLayer);
         event.registerLayerDefinition(DISGUISE_LAYER, VillagerMawModel::createBodyLayer);
         event.registerLayerDefinition(MAW_LAYER, MawParts::createLayer);
+    }
+
+    @SubscribeEvent
+    public static void registerOverlays(RegisterGuiOverlaysEvent event) {
+        event.registerAboveAll("grab", GrabOverlay::render);
     }
 
     @SubscribeEvent

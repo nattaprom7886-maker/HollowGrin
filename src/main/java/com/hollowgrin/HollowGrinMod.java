@@ -1,5 +1,6 @@
 package com.hollowgrin;
 
+import com.hollowgrin.network.ModNetwork;
 import com.hollowgrin.registry.ModEntities;
 import com.hollowgrin.registry.ModItems;
 import com.hollowgrin.registry.ModSounds;
@@ -16,6 +17,7 @@ public class HollowGrinMod {
 
     public HollowGrinMod() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModNetwork.register();
         ModSounds.SOUNDS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModItems.ITEMS.register(modBus);
