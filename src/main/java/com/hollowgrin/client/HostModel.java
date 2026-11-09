@@ -20,7 +20,7 @@ import net.minecraft.util.Mth;
  */
 public class HostModel extends EntityModel<HollowGrinEntity> {
     private final ModelPart root;
-    private final ModelPart body, head, jaw, armL, armR, legL, legR, eyeL, eyeR;
+    private final ModelPart body, head, jaw, hat, armL, armR, legL, legR, eyeL, eyeR;
     private final ModelPart mawL, mawR, mawL2, mawR2;
 
     public HostModel(ModelPart root) {
@@ -32,6 +32,7 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         this.armL = body.getChild("armL");
         this.armR = body.getChild("armR");
         this.jaw = head.getChild("jaw");
+        this.hat = head.getChild("hat");
         this.eyeL = head.getChild("eyeL");
         this.eyeR = head.getChild("eyeR");
         this.mawL = head.getChild("mawL");
@@ -144,6 +145,10 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
             armR.xRot = -0.4F - Mth.sin(age * 0.9F) * 0.25F;
         }
 
+        if (s == HollowGrinEntity.FAREWELL) {
+            farewell(st, age);
+        }
+
         float jawOpen;
         boolean maw = false;
         float ext = 0.0F;
@@ -191,6 +196,45 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         eyeR.x = -3.0F + tw * 0.6F;
         eyeL.y = -6.0F + Mth.cos(age * 0.29F) * 0.3F;
         eyeR.y = -6.0F + Mth.cos(age * 0.29F + 1.0F) * 0.3F;
+    }
+
+    private static float smooth(float x) {
+        x = Mth.clamp(x, 0.0F, 1.0F);
+        return x * x * (3.0F - 2.0F * x);
+    }
+
+    /** goodbye routine, driven by ticks since FAREWELL started (see HollowGrinEntity.tickFarewell). */
+    private void farewell(float k, float age) {
+        armL.xRot = 0.0F; armR.xRot = 0.0F;
+        armL.zRot = -0.06F; armR.zRot = 0.06F;
+        hat.y = -10.0F; hat.xRot = 0.0F;
+        body.xRot = 0.0F;
+        if (k < 10.0F) {                                   // recoil after the transformation
+            body.xRot = -0.12F * Mth.sin(k * 0.3F);
+        } else if (k < 62.0F) {                            // applause
+            float c = (Mth.sin((k - 10.0F) * 1.05F) + 1.0F) * 0.5F;
+            armL.xRot = -1.15F; armR.xRot = -1.15F;
+            armL.zRot = 0.35F + 0.6F * c;
+            armR.zRot = -(0.35F + 0.6F * c);
+            head.zRot = Mth.sin(k * 0.5F) * 0.12F;
+        } else if (k < 88.0F) {                            // wind up and throw the diamond
+            float t = (k - 62.0F) / 26.0F;
+            armR.xRot = t < 0.6F
+                    ? Mth.lerp(t / 0.6F, -0.2F, 1.5F)
+                    : Mth.lerp(Math.min(1.0F, (t - 0.6F) / 0.15F), 1.5F, -1.7F);
+            armR.zRot = -0.12F;
+            armL.xRot = -0.9F; armL.zRot = 0.3F;
+        } else if (k < 150.0F) {                           // tip the hat, bow
+            float t = k - 88.0F;
+            float arm = smooth(t / 10.0F) * (1.0F - smooth((t - 52.0F) / 8.0F));
+            float hatUp = smooth((t - 8.0F) / 4.0F) * (1.0F - smooth((t - 48.0F) / 4.0F));
+            float bow = smooth((t - 14.0F) / 14.0F) * (1.0F - smooth((t - 38.0F) / 14.0F));
+            armR.xRot = Mth.lerp(arm, -0.1F, -2.65F);
+            armR.zRot = -0.12F - 0.2F * arm;
+            hat.y = -10.0F - 7.0F * hatUp;
+            hat.xRot = -0.35F * hatUp;
+            body.xRot = 0.6F * bow;
+        }
     }
 
     @Override

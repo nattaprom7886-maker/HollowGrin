@@ -220,5 +220,12 @@ def make_squeeze():
     out += bp(rng.normal(size=n), 2000, 6000) * 0.05 * (tt / dur)
     save("squeeze", reverb(out, 0.9, 0.18))
 
+# ============== CLAP (gloved applause) ==============
+def make_clap():
+    n = int(0.28 * SR)
+    hit = bp(rng.normal(size=n), 700, 3800) * env_exp(n, 0.035)
+    thump = np.sin(2 * np.pi * 180 * t_(0.28)) * env_exp(n, 0.02) * 0.5
+    save("clap", reverb(hit * 1.4 + thump, 0.5, 0.15))
+
 if __name__ == "__main__":
-    make_gotcha(); make_laugh(); make_hum(); make_heartbeat(); make_reveal(); make_jaw(); make_squeeze()
+    make_gotcha(); make_laugh(); make_hum(); make_heartbeat(); make_reveal(); make_jaw(); make_squeeze(); make_clap()

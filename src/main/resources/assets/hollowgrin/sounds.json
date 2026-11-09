@@ -1,9 +1,66 @@
 {
-  "hum":       { "sounds": [ { "name": "hollowgrin:hum" } ],       "subtitle": "subtitles.hollowgrin.hum" },
-  "heartbeat": { "sounds": [ { "name": "hollowgrin:heartbeat" } ], "subtitle": "subtitles.hollowgrin.heartbeat" },
-  "laugh":     { "sounds": [ { "name": "hollowgrin:laugh" } ],     "subtitle": "subtitles.hollowgrin.laugh" },
-  "reveal":    { "sounds": [ { "name": "hollowgrin:reveal" } ],    "subtitle": "subtitles.hollowgrin.reveal" },
-  "jaw":       { "sounds": [ { "name": "hollowgrin:jaw" } ],       "subtitle": "subtitles.hollowgrin.jaw" },
-  "gotcha":    { "sounds": [ { "name": "hollowgrin:gotcha" } ],    "subtitle": "subtitles.hollowgrin.gotcha" },
-  "squeeze":   { "sounds": [ { "name": "hollowgrin:squeeze" } ],   "subtitle": "subtitles.hollowgrin.squeeze" }
+  "hum": {
+    "sounds": [
+      {
+        "name": "hollowgrin:hum"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.hum"
+  },
+  "heartbeat": {
+    "sounds": [
+      {
+        "name": "hollowgrin:heartbeat"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.heartbeat"
+  },
+  "laugh": {
+    "sounds": [
+      {
+        "name": "hollowgrin:laugh"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.laugh"
+  },
+  "reveal": {
+    "sounds": [
+      {
+        "name": "hollowgrin:reveal"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.reveal"
+  },
+  "jaw": {
+    "sounds": [
+      {
+        "name": "hollowgrin:jaw"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.jaw"
+  },
+  "gotcha": {
+    "sounds": [
+      {
+        "name": "hollowgrin:gotcha"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.gotcha"
+  },
+  "squeeze": {
+    "sounds": [
+      {
+        "name": "hollowgrin:squeeze"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.squeeze"
+  },
+  "clap": {
+    "sounds": [
+      {
+        "name": "hollowgrin:clap"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.clap"
+  }
 }

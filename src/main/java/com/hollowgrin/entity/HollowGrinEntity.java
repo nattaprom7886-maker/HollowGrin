@@ -26,6 +26,9 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -64,6 +67,8 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     public static final int GRAB = 4;
     public static final int STUNNED = 5;
     public static final int RETREAT = 6;
+    /** after you break free: he dissolves into the true body, applauds, throws a diamond, tips his hat, vanishes. */
+    public static final int FAREWELL = 7;
 
     private static final EntityDataAccessor<Integer> STATE =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.INT);
@@ -321,6 +326,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             case GRAB -> tickGrab(t);
             case STUNNED -> tickStunned();
             case RETREAT -> tickRetreat();
+            case FAREWELL -> tickFarewell(t);
             default -> setState(DISGUISE);
         }
     }
@@ -495,13 +501,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             this.entityData.set(STRUGGLE, (int) this.struggleF);
         }
         if (g >= GRAB_SQUEEZE_FROM && (g - GRAB_SQUEEZE_FROM) % 14 == 0) {
-            this.playSound(ModSounds.SQUEEZE.get(), 1.6F, 0.9F + this.random.nextFloat() * 0.2F);
-            t.hurt(this.level().damageSources().mobAttack(this), 1.0F);
-            if (!t.isAlive()) {
-                releaseNow();
-                setState(RETREAT);
-                return;
-            }
+            this.playSound(ModSounds.SQUEEZE.get(), 1.6F, 0.9F + this.random.nextFloat() * 0.2F);   // sound only: HP stays untouched
         }
         if (g >= GRAB_KILL_AT) {
             finishGrab(t);
@@ -538,10 +538,69 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         return this.isAlive() && !this.isRemoved() && getState() == GRAB && !this.releasing;
     }
 
+    /** You wrenched free (or hurt him enough): he throws you off, dissolves into his true body and says goodbye. */
     private void breakGrab() {
+        ServerPlayer t = findTarget();
         releaseNow();
-        setState(STUNNED);
-        this.playSound(ModSounds.REVEAL.get(), 1.6F, 0.7F);
+        if (t != null) {
+            Vec3 away = t.position().subtract(this.position());
+            away = new Vec3(away.x, 0.0D, away.z);
+            if (away.lengthSqr() < 1.0E-4D) {
+                double yaw = Math.toRadians(this.getYRot());
+                away = new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
+            }
+            away = away.normalize();
+            t.setDeltaMovement(away.x * 1.0D, 0.45D, away.z * 1.0D);   // thrown out of his hands
+            t.hurtMarked = true;
+            t.fallDistance = 0.0F;
+        }
+        if (this.level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1.0D, getZ(), 40, 0.5D, 0.9D, 0.5D, 0.03D);
+        }
+        this.getNavigation().stop();
+        this.entityData.set(TRUE_FORM, true);      // the villager shell dissolves
+        setState(FAREWELL);
+        this.playSound(ModSounds.REVEAL.get(), 1.6F, 1.2F);
+    }
+
+    // ------------------------------------------------------------------ FAREWELL (timeline in ticks)
+    //   0-10 recoil | 12-60 applause | 62-88 throws a diamond (released at 80) | 88-150 tips his hat, bows
+    //   140-160 smoke | 160 gone
+
+    private void tickFarewell(ServerPlayer t) {
+        this.getNavigation().stop();
+        this.getLookControl().setLookAt(t, 40.0F, 40.0F);
+        int k = this.stateTicks;
+        if (k >= 12 && k <= 62 && (k - 10) % 6 == 2) {
+            this.playSound(ModSounds.CLAP.get(), 1.2F, 0.95F + this.random.nextFloat() * 0.1F);
+        }
+        if (k == 80) {
+            throwDiamond(t);
+        }
+        if (k == 140) {
+            this.playSound(SoundEvents.FIRECHARGE_USE, 0.9F, 0.8F);
+        }
+        if (k >= 140 && k < 160 && k % 2 == 0 && this.level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.5D, getZ(),
+                    6, 0.6D, 0.9D, 0.6D, 0.02D);
+        }
+        if (k >= 160) {
+            vanish(true);
+        }
+    }
+
+    private void throwDiamond(ServerPlayer t) {
+        Vec3 from = new Vec3(getX(), getY() + getBbHeight() * 0.55D, getZ());
+        Vec3 to = t.position().add(0.0D, t.getBbHeight() * 0.6D, 0.0D);
+        Vec3 d = to.subtract(from);
+        double horiz = Math.sqrt(d.x * d.x + d.z * d.z);
+        Vec3 dir = horiz < 0.001D ? Vec3.ZERO : new Vec3(d.x / horiz, 0.0D, d.z / horiz);
+        double speed = Mth.clamp(horiz * 0.09D, 0.15D, 0.5D);
+        ItemEntity item = new ItemEntity(this.level(), from.x, from.y, from.z, new ItemStack(Items.DIAMOND, 1));
+        item.setDeltaMovement(dir.x * speed, 0.22D, dir.z * speed);
+        item.setPickUpDelay(15);
+        this.level().addFreshEntity(item);
+        this.playSound(SoundEvents.SNOWBALL_THROW, 1.0F, 0.9F);
     }
 
     // ------------------------------------------------------------------ STUNNED / RETREAT
@@ -579,6 +638,9 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             return super.hurt(source, amount);
         }
         int before = getState();
+        if (before == FAREWELL) {
+            return false;
+        }
         if (before == DISGUISE && source.getEntity() instanceof Player) {
             beginReveal();
         }

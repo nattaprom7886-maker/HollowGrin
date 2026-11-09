@@ -18,6 +18,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> JAW = reg("jaw");
     public static final RegistryObject<SoundEvent> GOTCHA = reg("gotcha");
     public static final RegistryObject<SoundEvent> SQUEEZE = reg("squeeze");
+    public static final RegistryObject<SoundEvent> CLAP = reg("clap");
 
     private static RegistryObject<SoundEvent> reg(String name) {
         return SOUNDS.register(name,

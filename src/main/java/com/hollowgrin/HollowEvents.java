@@ -72,7 +72,8 @@ public class HollowEvents {
                 && event.getEntityBeingMounted() instanceof HollowGrinEntity host
                 && event.getEntityMounting() instanceof Player rider
                 && host.shouldHoldPassenger()
-                && rider.isAlive() && !rider.isRemoved()) {
+                && rider.isAlive() && !rider.isRemoved()
+                && !rider.level().isClientSide) {
             event.setCanceled(true);
         }
     }
