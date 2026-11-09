@@ -88,7 +88,14 @@ public class HollowEvents {
                             ? "Mr. Hollowgrin is somewhere nearby. He looks like a villager."
                             : "Could not place him (is he already here, or is there no room?)"), true);
                     return ok ? 1 : 0;
-                }))
+                }).then(Commands.literal("host").executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                    boolean ok = HollowSpawner.spawnFor(p, true, true);
+                    ctx.getSource().sendSuccess(() -> Component.literal(ok
+                            ? "The Host (true form) has arrived."
+                            : "Could not place him (is he already here, or is there no room?)"), true);
+                    return ok ? 1 : 0;
+                })))
                 .then(Commands.literal("clear").executes(ctx -> {
                     List<HollowGrinEntity> found = new ArrayList<>();
                     for (Entity e : ctx.getSource().getLevel().getAllEntities()) {

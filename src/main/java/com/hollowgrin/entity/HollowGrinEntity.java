@@ -70,6 +70,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private static final EntityDataAccessor<VillagerData> VILLAGER =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.VILLAGER_DATA);
 
+    /** false (normal): villager body with an opening mouth. true: optional fat top-hatted body (command only). */
+    private static final EntityDataAccessor<Boolean> TRUE_FORM =
+            SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.BOOLEAN);
+
     private static final ResourceKey<DamageType> SQUEEZE =
             ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(HollowGrinMod.MODID, "squeeze"));
 
@@ -115,6 +119,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(STATE, DISGUISE);
+        this.entityData.define(TRUE_FORM, false);
         this.entityData.define(VILLAGER, new VillagerData(VillagerType.PLAINS, VillagerProfession.NONE, 1));
     }
 
@@ -123,6 +128,8 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         super.onSyncedDataUpdated(key);
         if (STATE.equals(key)) {
             this.stateTicks = 0;
+        }
+        if (STATE.equals(key) || TRUE_FORM.equals(key)) {
             this.refreshDimensions();
         }
     }
@@ -153,6 +160,16 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         return this.stateTicks;
     }
 
+    public boolean isTrueForm() {
+        return this.entityData.get(TRUE_FORM);
+    }
+
+    /** optional second body: starts already revealed. */
+    public void startAsTrueForm() {
+        this.entityData.set(TRUE_FORM, true);
+        setState(HOST);
+    }
+
     public boolean isDisguised() {
         int s = getState();
         return s == DISGUISE || s == REVEAL;
@@ -164,7 +181,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
 
     @Override
     public EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
-        return isDisguised() ? EntityDimensions.scalable(0.6F, 1.95F) : EntityDimensions.scalable(1.0F, 2.9F);
+        return isTrueForm() ? EntityDimensions.scalable(1.0F, 2.9F) : EntityDimensions.scalable(0.6F, 1.95F);
     }
 
     @Override
@@ -193,7 +210,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         this.stateTicks++;
         if (this.level().isClientSide) {
             int s = getState();
-            if ((s == HOST || s == CHASE || s == GRAB) && this.random.nextInt(6) == 0) {
+            if (isTrueForm() && (s == HOST || s == CHASE || s == GRAB) && this.random.nextInt(6) == 0) {
                 this.level().addParticle(ParticleTypes.SMOKE, getRandomX(0.4D), getY() + getBbHeight() * 0.6D,
                         getRandomZ(0.4D), 0.0D, 0.02D, 0.0D);
             }
@@ -356,11 +373,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             sl.sendParticles(ParticleTypes.SMOKE, getX(), getY() + 1.0D, getZ(), 3, 0.2D, 0.4D, 0.2D, 0.01D);
         }
         if (this.stateTicks >= REVEAL_TICKS) {
-            if (this.level() instanceof ServerLevel sl) {
-                sl.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1.2D, getZ(), 40, 0.5D, 0.9D, 0.5D, 0.03D);
-            }
-            setState(HOST);
-            this.playSound(ModSounds.LAUGH.get(), 1.8F, 1.0F);
+            // no transformation: the villager's own jaw simply unhinges
+            setState(CHASE);
+            this.playSound(ModSounds.JAW.get(), 1.8F, 0.9F);
+            this.playSound(ModSounds.LAUGH.get(), 1.6F, 0.8F);
         }
     }
 
@@ -536,7 +552,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
 
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
-        if (isDisguised()) {
+        if (!isTrueForm() && getState() == DISGUISE) {
             // exactly what an unemployed villager does when you try to trade
             this.playSound(SoundEvents.VILLAGER_NO, 1.0F, 1.0F);
             return InteractionResult.sidedSuccess(this.level().isClientSide);
@@ -555,7 +571,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         double fx = -Math.sin(yaw);
         double fz = Math.cos(yaw);
         double lift = 0.2D + 1.0D * Math.min(1.0D, this.stateTicks / 20.0D);
-        callback.accept(passenger, this.getX() + fx * 1.7D, this.getY() + lift, this.getZ() + fz * 1.7D);
+        callback.accept(passenger, this.getX() + fx * (isTrueForm() ? 1.7D : 1.6D), this.getY() + lift, this.getZ() + fz * (isTrueForm() ? 1.7D : 1.6D));
     }
 
     @Override
@@ -567,7 +583,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return isDisguised() ? SoundEvents.VILLAGER_HURT : SoundEvents.RAVAGER_HURT;
+        return !isTrueForm() ? SoundEvents.VILLAGER_HURT : SoundEvents.RAVAGER_HURT;
     }
 
     @Override

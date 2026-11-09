@@ -180,3 +180,49 @@ old = os.path.join(OUT, "disguise.png")
 if os.path.exists(old):
     os.remove(old)
 print("ok")
+
+
+# =====================================================================
+#  MAW TEXTURE (64x64): the inside of the villager's open mouth + black hands.
+#  Used by MawParts.java / MawLayer.java. Transparent pixels = cut-out (teeth gaps).
+# =====================================================================
+M = Tex(64, 64)
+INK = (13, 12, 16); INK_HI = (36, 34, 42)
+ROOF = (112, 20, 32); FLOOR = (98, 14, 26); TONG = (178, 64, 80)
+
+def teeth_plate(upper):
+    def fn(x, y, w, h, n):
+        if h != 3 or w < 5:
+            return shade(TOOTH, n * 0.04 - 0.1)
+        yy = y if upper else (2 - y)              # row 0 = base of the tooth
+        if yy == 0:
+            return shade(TOOTH, n * 0.04 - 0.12)
+        if x % 2 == 0:
+            return shade(TOOTH, n * 0.04 + (0.05 if yy == 2 else -0.05))
+        return None                               # gap between teeth -> cut-out
+    return fn
+
+paint(M, (0, 0, 8, 1, 8), {}, lambda x, y, w, h, n: shade(ROOF, n * 0.12 + (0.15 if (x * 3 + y * 5) % 11 == 0 else 0)))
+paint(M, (32, 0, 8, 1, 8), {}, lambda x, y, w, h, n: shade(FLOOR, n * 0.12))
+paint(M, (0, 10, 7, 3, 1), {}, teeth_plate(True))
+paint(M, (16, 10, 7, 3, 1), {}, teeth_plate(False))
+paint(M, (0, 15, 1, 3, 7), {}, teeth_plate(True))
+paint(M, (16, 15, 1, 3, 7), {}, teeth_plate(False))
+def tongue(x, y, w, h, n):
+    c = shade(TONG, n * 0.08)
+    if w >= 5 and abs(x - w / 2.0) < 0.6:
+        c = shade(TONG, -0.18)                    # groove down the middle
+    return c
+paint(M, (32, 10, 3, 2, 7), {}, tongue)
+def ink(x, y, w, h, n):
+    c = shade(INK, n * 0.25)
+    if (x + y * 2) % 7 == 0:
+        c = INK_HI
+    return c
+paint(M, (0, 26, 3, 3, 12), {}, ink)
+paint(M, (32, 26, 6, 5, 5), {}, ink)
+for yy in range(38, 44):
+    for xx in range(32, 44):
+        M.px[xx, yy] = clamp(shade(INK, M.noise[yy, xx] * 0.25)) + (255,)
+M.save("maw.png")
+print("maw.png written")

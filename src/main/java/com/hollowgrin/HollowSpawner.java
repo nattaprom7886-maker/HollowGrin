@@ -25,6 +25,10 @@ public final class HollowSpawner {
      * @return true if he was spawned.
      */
     public static boolean spawnFor(ServerPlayer player, boolean force) {
+        return spawnFor(player, force, false);
+    }
+
+    public static boolean spawnFor(ServerPlayer player, boolean force, boolean trueForm) {
         ServerLevel level = player.serverLevel();
 
         // only ever one of him per player area
@@ -74,6 +78,9 @@ public final class HollowSpawner {
             }
             host.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, rnd.nextFloat() * 360.0F, 0.0F);
             host.setTargetPlayer(player);
+            if (trueForm) {
+                host.startAsTrueForm();
+            }
             if (source != null) {
                 host.setVillagerData(source.getVillagerData());   // identical clothes, profession and badge
             }
