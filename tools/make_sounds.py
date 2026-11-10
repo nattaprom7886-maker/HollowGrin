@@ -227,5 +227,123 @@ def make_clap():
     thump = np.sin(2 * np.pi * 180 * t_(0.28)) * env_exp(n, 0.02) * 0.5
     save("clap", reverb(hit * 1.4 + thump, 0.5, 0.15))
 
+# ============== TAUNT: a whole sentence from a hand-written phoneme formant synthesiser ==============
+VOW = {'AA': (730, 1090, 2440), 'AE': (660, 1720, 2410), 'AH': (640, 1190, 2390), 'AO': (570, 840, 2410),
+       'EH': (530, 1840, 2480), 'ER': (490, 1350, 1690), 'IH': (390, 1990, 2550), 'IY': (270, 2290, 3010),
+       'UH': (440, 1020, 2240), 'UW': (300, 870, 2240)}
+DIPH = {'AY': ('AA', 'IH'), 'EY': ('EH', 'IH'), 'OW': ('AO', 'UH')}
+GLI = {'L': (360, 1300, 2900), 'R': (310, 1060, 1380), 'W': (290, 610, 2150), 'Y': (260, 2070, 3020)}
+NAS = {'M': (250, 1100, 2200), 'N': (250, 1500, 2500), 'NG': (250, 1800, 2500)}
+BW = ((90, 1.0), (110, 0.7), (170, 0.35))
+
+def _env(n, a=0.015, r=0.025):
+    i = np.arange(n)
+    return np.minimum(1, i / max(1, a * SR)) * np.minimum(1, (n - i) / max(1, r * SR))
+
+def _voiced(fa, fb, dur, f0a, f0b, amp=1.0, breath=0.05, rough=0.3):
+    n = int(dur * SR); f0 = np.linspace(f0a, f0b, n)
+    fm = []
+    for i, (bw, g) in enumerate(BW):
+        if fa[i] == fb[i]: fm.append((float(fa[i]), bw, g))
+        else: fm.append((np.linspace(fa[i], fb[i], n), bw, g))
+    return vowel(f0, fm, _env(n) * amp, breath, rough)
+
+def _noise(dur, lo, hi, amp):
+    n = int(dur * SR); return bp(rng.normal(size=n), lo, hi) * _env(n, 0.01, 0.02) * amp
+
+def _sil(dur): return np.zeros(int(dur * SR))
+
+def ph_segment(p, f0a, f0b, stress=False, final=False):
+    k = 1.0 + (0.35 if stress else 0) + (0.3 if final else 0)
+    if p in VOW:
+        return _voiced(VOW[p], VOW[p], 0.12 * k, f0a, f0b)
+    if p in DIPH:
+        a, b = DIPH[p]; return _voiced(VOW[a], VOW[b], 0.19 * k, f0a, f0b)
+    if p in GLI:
+        return _voiced(GLI[p], GLI[p], 0.075, f0a, f0b, 0.8)
+    if p in NAS:
+        return _voiced(NAS[p], NAS[p], 0.08, f0a, f0b, 0.6)
+    if p == 'S': return _noise(0.10, 4200, 9500, 0.55)
+    if p == 'SH': return _noise(0.11, 2200, 6500, 0.7)
+    if p == 'F': return _noise(0.09, 1500, 8500, 0.28)
+    if p == 'TH': return _noise(0.08, 1800, 8500, 0.22)
+    if p in ('DH', 'V'): return _voiced((300, 1300, 2500), (300, 1300, 2500), 0.06, f0a, f0b, 0.5)
+    if p == 'HH': return _noise(0.07, 500, 3500, 0.35)
+    if p == 'T': return np.concatenate([_sil(0.045), _noise(0.018, 3000, 8000, 0.8), _noise(0.03, 2000, 6000, 0.2)])
+    if p == 'K': return np.concatenate([_sil(0.05), _noise(0.02, 1200, 3500, 0.85), _noise(0.04, 1500, 4500, 0.25)])
+    if p == 'D':
+        bar = np.sin(2 * np.pi * 95 * t_(0.04)) * 0.25
+        return np.concatenate([bar, _noise(0.012, 2500, 7000, 0.5)])
+    if p == 'CH': return np.concatenate([_sil(0.05), _noise(0.012, 2500, 7000, 0.8), _noise(0.09, 2200, 7000, 0.6)])
+    raise ValueError(p)
+
+def say(phs, fstart, fend, stress=(), final_rise=0.0):
+    """phs: list of phoneme names. Pitch glides fstart -> fend over the phrase (+ optional rise on the last vowel)."""
+    parts = []; n = len(phs)
+    for i, p in enumerate(phs):
+        a = fstart + (fend - fstart) * i / max(1, n)
+        b = fstart + (fend - fstart) * (i + 1) / max(1, n)
+        last_voiced = (i == n - 1) or all(q not in VOW and q not in DIPH for q in phs[i + 1:])
+        if last_voiced and final_rise:
+            b = b + final_rise
+        if i in stress:
+            a += 14; b += 10
+        parts.append(ph_segment(p, a, b, stress=(i in stress), final=(i == n - 1 and final_rise != 0)))
+    return np.concatenate(parts)
+
+def make_taunt():
+    marks = {}
+    pieces = []
+    t0 = 0.0
+    def add(name, arr, gap):
+        nonlocal t0
+        marks[name] = round(t0, 2)
+        pieces.append(arr); pieces.append(_sil(gap)); t0 += (len(arr) / SR) + gap
+    # "Do you really think I can't catch you?"
+    l1 = np.concatenate([
+        say(['D', 'UW'], 100, 98), _sil(0.04), say(['Y', 'UW'], 98, 96),  _sil(0.05),
+        say(['R', 'IH', 'L', 'IY'], 104, 98, stress=(1,)), _sil(0.06),
+        say(['TH', 'IH', 'NG', 'K'], 112, 100, stress=(1,)), _sil(0.07),
+        say(['AY'], 108, 100), _sil(0.04),
+        say(['K', 'AE', 'N', 'T'], 108, 100, stress=(1,)), _sil(0.05),
+        say(['K', 'AE', 'CH'], 106, 98, stress=(1,)), _sil(0.04),
+        say(['Y', 'UW'], 100, 100, final_rise=45)])
+    add('line1', l1, 0.35)
+    # "Hahaha"
+    parts = []; base = 150
+    for i in range(3):
+        pitch = base * (0.9 ** i)
+        h = _noise(0.07, 800, 5000, 0.5)
+        a_n = int(0.17 * SR)
+        a = vowel(np.linspace(pitch * 1.1, pitch * 0.8, a_n), [(800, 100, 1.0), (1250, 120, 0.7), (2650, 180, 0.3)],
+                  np.hanning(a_n) ** 0.7, breath=0.15, rough=0.4)
+        parts += [h, a, _sil(0.09)]
+    add('laugh', np.concatenate(parts), 0.30)
+    # "What a funny face."
+    l2 = np.concatenate([
+        say(['W', 'AH', 'T'], 108, 104), _sil(0.04), say(['AH'], 100, 98), _sil(0.04),
+        say(['F', 'AH', 'N', 'IY'], 118, 100, stress=(1,)), _sil(0.06),
+        say(['F', 'EY', 'S'], 106, 82, stress=(1,))])
+    add('line2', l2, 0.40)
+    # "Then let's try the next level, shall we?"
+    l3 = np.concatenate([
+        say(['DH', 'EH', 'N'], 102, 100), _sil(0.07),
+        say(['L', 'EH', 'T', 'S'], 104, 100, stress=(1,)), _sil(0.04),
+        say(['T', 'R', 'AY'], 116, 104, stress=(2,)), _sil(0.04),
+        say(['DH', 'AH'], 100, 98), _sil(0.03),
+        say(['N', 'EH', 'K', 'S', 'T'], 114, 102, stress=(1,)), _sil(0.04),
+        say(['L', 'EH', 'V', 'AH', 'L'], 112, 100, stress=(1,)), _sil(0.12),
+        say(['SH', 'AE', 'L'], 106, 100, stress=(1,)), _sil(0.04),
+        say(['W', 'IY'], 100, 100, final_rise=50)])
+    add('line3', l3, 0.0)
+    x = np.concatenate(pieces)
+    x = x / (np.abs(x).max() + 1e-9)
+    x = np.tanh(x * 1.15)                           # gentle warmth, no hard clipping
+    x = lp(x, 6500)
+    x = x + 0.45 * np.roll(x, int(0.013 * SR))      # thicken (time-aligned, unlike a pitch-shifted copy)
+    x = hp(x, 60)
+    save("taunt", reverb(x, 1.0, 0.18))
+    print("TAUNT marks (s):", marks, "voice length:", round(t0, 2))
+
 if __name__ == "__main__":
     make_gotcha(); make_laugh(); make_hum(); make_heartbeat(); make_reveal(); make_jaw(); make_squeeze(); make_clap()

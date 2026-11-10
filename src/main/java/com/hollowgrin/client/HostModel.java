@@ -14,13 +14,14 @@ import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.util.Mth;
 
 /**
- * The true body of Mr. Hollowgrin (v1.1 proportions): round gentleman, wide head, modest top hat with a bow,
- * hollow eyes with small red eyeballs, needle-tooth grin, white gloves - and two long gloved arms hidden in the throat.
+ * The true body of Mr. Hollowgrin (v1.4): round gentleman, wide head, modest top hat with a bow,
+ * hollow eyes with small red eyeballs, needle-tooth grin, white gloves, jointed arms (shoulder + elbow).
  * Texture layout: 128 x 192 (see tools/make_textures.py - the UV offsets below must stay in sync).
+ * The upper arm / forearm split reuses the original arm UV area, so the texture looks identical.
  */
 public class HostModel extends EntityModel<HollowGrinEntity> {
     private final ModelPart root;
-    private final ModelPart body, head, jaw, hat, armL, armR, legL, legR, eyeL, eyeR;
+    private final ModelPart body, head, jaw, hat, armL, armR, foreL, foreR, legL, legR, eyeL, eyeR;
     private final ModelPart mawL, mawR, mawL2, mawR2;
 
     public HostModel(ModelPart root) {
@@ -31,6 +32,8 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         this.head = body.getChild("head");
         this.armL = body.getChild("armL");
         this.armR = body.getChild("armR");
+        this.foreL = armL.getChild("foreL");
+        this.foreR = armR.getChild("foreR");
         this.jaw = head.getChild("jaw");
         this.hat = head.getChild("hat");
         this.eyeL = head.getChild("eyeL");
@@ -45,18 +48,15 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition r = mesh.getRoot();
 
-        // legs: hips at y=10, feet at y=24
         CubeListBuilder leg = CubeListBuilder.create().texOffs(0, 49).addBox(-3.0F, 0.0F, -3.0F, 6, 14, 6);
         r.addOrReplaceChild("legL", leg, PartPose.offset(4.5F, 10.0F, 0.0F));
         r.addOrReplaceChild("legR", leg, PartPose.offset(-4.5F, 10.0F, 0.0F));
 
-        // round torso + belly
         PartDefinition body = r.addOrReplaceChild("body", CubeListBuilder.create()
                 .texOffs(0, 0).addBox(-10.0F, -16.0F, -7.0F, 20, 16, 14)
                 .texOffs(0, 30).addBox(-9.0F, -11.0F, -12.0F, 18, 13, 6),
                 PartPose.offset(0.0F, 10.0F, 0.0F));
 
-        // wide head (16x10x14) + hinged jaw (15x5x13)
         PartDefinition head = body.addOrReplaceChild("head", CubeListBuilder.create()
                 .texOffs(68, 0).addBox(-8.0F, -10.0F, -7.0F, 16, 10, 14),
                 PartPose.offset(0.0F, -21.0F, 0.0F));
@@ -64,7 +64,6 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
                 .texOffs(68, 24).addBox(-7.5F, 0.0F, -11.0F, 15, 5, 13),
                 PartPose.offset(0.0F, 0.0F, 4.0F));
 
-        // modest top hat with band and bow
         PartDefinition hat = head.addOrReplaceChild("hat", CubeListBuilder.create()
                 .texOffs(0, 96).addBox(-10.0F, -1.0F, -10.0F, 20, 2, 20)
                 .texOffs(68, 42).addBox(-6.0F, -13.0F, -6.0F, 12, 12, 12)
@@ -77,20 +76,21 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         hat.addOrReplaceChild("bowR", CubeListBuilder.create()
                 .texOffs(68, 84).addBox(2.0F, -4.0F, -7.5F, 4, 3, 1), PartPose.ZERO);
 
-        // hollow eyes: tiny red eyeballs floating in dark sockets
         CubeListBuilder eye = CubeListBuilder.create().texOffs(92, 84).addBox(-1.0F, -1.0F, -1.0F, 2, 2, 2);
         head.addOrReplaceChild("eyeL", eye, PartPose.offset(3.0F, -6.0F, -6.7F));
         head.addOrReplaceChild("eyeR", eye, PartPose.offset(-3.0F, -6.0F, -6.7F));
 
-        // arms with white gloves (hang to hip height)
-        CubeListBuilder arm = CubeListBuilder.create().texOffs(0, 70).addBox(-3.5F, -2.0F, -3.5F, 7, 16, 7);
+        // jointed arms: upper arm (shoulder) -> forearm (elbow) -> glove
+        CubeListBuilder upper = CubeListBuilder.create().texOffs(0, 70).addBox(-3.5F, -2.0F, -3.5F, 7, 8, 7);
+        CubeListBuilder fore = CubeListBuilder.create().texOffs(0, 78).addBox(-3.5F, 0.0F, -3.5F, 7, 8, 7);
         CubeListBuilder glove = CubeListBuilder.create().texOffs(28, 70).addBox(-3.5F, 0.0F, -3.5F, 7, 6, 7);
-        body.addOrReplaceChild("armL", arm, PartPose.offset(13.0F, -13.0F, 0.0F))
-                .addOrReplaceChild("handL", glove, PartPose.offset(0.0F, 13.0F, 0.0F));
-        body.addOrReplaceChild("armR", arm, PartPose.offset(-13.0F, -13.0F, 0.0F))
-                .addOrReplaceChild("handR", glove, PartPose.offset(0.0F, 13.0F, 0.0F));
+        PartDefinition aL = body.addOrReplaceChild("armL", upper, PartPose.offset(13.0F, -13.0F, 0.0F));
+        aL.addOrReplaceChild("foreL", fore, PartPose.offset(0.0F, 6.0F, 0.0F))
+                .addOrReplaceChild("handL", glove, PartPose.offset(0.0F, 7.0F, 0.0F));
+        PartDefinition aR = body.addOrReplaceChild("armR", upper, PartPose.offset(-13.0F, -13.0F, 0.0F));
+        aR.addOrReplaceChild("foreR", fore, PartPose.offset(0.0F, 6.0F, 0.0F))
+                .addOrReplaceChild("handR", glove, PartPose.offset(0.0F, 7.0F, 0.0F));
 
-        // arms that come out of the mouth (hidden unless CHASE / GRAB)
         addMawArm(head, "mawL", 3.0F);
         addMawArm(head, "mawR", -3.0F);
 
@@ -114,6 +114,8 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         }
     }
 
+    // ------------------------------------------------------------------ animation
+
     @Override
     public void setupAnim(HollowGrinEntity e, float limbSwing, float limbSwingAmount, float age,
                           float netYaw, float pitch) {
@@ -121,6 +123,12 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         float st = e.getStateTicks() + (age - e.tickCount);
         float amt = Math.min(limbSwingAmount, 1.0F);
         float swing = limbSwing * 0.55F;
+
+        // reset everything that special animations may have moved
+        body.y = 10.0F;
+        hat.x = 0.0F; hat.y = -10.0F; hat.xRot = 0.0F; hat.zRot = 0.05F;
+        armL.yRot = 0.0F; armR.yRot = 0.0F;
+        foreL.yRot = 0.0F; foreR.yRot = 0.0F;
 
         head.yRot = netYaw * Mth.DEG_TO_RAD;
         head.xRot = pitch * Mth.DEG_TO_RAD * 0.8F;
@@ -136,17 +144,23 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         armL.xRot = Mth.cos(swing) * 0.7F * amt;
         armL.zRot = -0.06F;
         armR.zRot = 0.06F;
+        foreL.xRot = -0.12F - 0.25F * amt;       // elbows bend a little when walking
+        foreR.xRot = -0.12F - 0.25F * amt;
+
         if (s == HollowGrinEntity.HOST || s == HollowGrinEntity.RETREAT || s == HollowGrinEntity.STUNNED) {
+            // polite host: gloved hands clasped in front of the belly, fingers tapping
             float tap = Mth.sin(age * 0.3F) * 0.04F;
-            armL.xRot = -0.95F + tap; armL.zRot = 0.30F;
-            armR.xRot = -0.95F - tap; armR.zRot = -0.30F;
+            armL.xRot = -0.6F + tap; armL.yRot = 0.55F; armL.zRot = 0.0F;
+            armR.xRot = -0.6F - tap; armR.yRot = -0.55F; armR.zRot = 0.0F;
+            foreL.xRot = -0.95F; foreR.xRot = -0.95F;
         } else if (s == HollowGrinEntity.CHASE) {
             armL.xRot = -0.4F + Mth.sin(age * 0.9F) * 0.25F;
             armR.xRot = -0.4F - Mth.sin(age * 0.9F) * 0.25F;
+            foreL.xRot = -0.3F; foreR.xRot = -0.3F;
         }
 
         if (s == HollowGrinEntity.FAREWELL) {
-            farewell(st, age);
+            farewell(st);
         }
 
         float jawOpen;
@@ -198,43 +212,96 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         eyeR.y = -6.0F + Mth.cos(age * 0.29F + 1.0F) * 0.3F;
     }
 
-    private static float smooth(float x) {
+    // ------------------------------------------------------------------ farewell routine
+    // k = ticks since FAREWELL began. Phases are blended on top of a rest pose with smooth windows:
+    //   clap ~8..64 | throw ~56..96 (diamond leaves the hand at tick 80) | tip hat + bow ~84..156
+
+    private static final int LUX = 0, LUY = 1, LUZ = 2, RUX = 3, RUY = 4, RUZ = 5, LFX = 6, RFX = 7,
+            BODYX = 8, BODYY = 9, BODYYAW = 10, HEADX = 11, HEADZ = 12, HATPX = 13, HATY = 14, HATX = 15, HATZ = 16,
+            N = 17;
+
+    private static float sm(float x) {
         x = Mth.clamp(x, 0.0F, 1.0F);
         return x * x * (3.0F - 2.0F * x);
     }
 
-    /** goodbye routine, driven by ticks since FAREWELL started (see HollowGrinEntity.tickFarewell). */
-    private void farewell(float k, float age) {
-        armL.xRot = 0.0F; armR.xRot = 0.0F;
-        armL.zRot = -0.06F; armR.zRot = 0.06F;
-        hat.y = -10.0F; hat.xRot = 0.0F;
-        body.xRot = 0.0F;
-        if (k < 10.0F) {                                   // recoil after the transformation
-            body.xRot = -0.12F * Mth.sin(k * 0.3F);
-        } else if (k < 62.0F) {                            // applause
-            float c = (Mth.sin((k - 10.0F) * 1.05F) + 1.0F) * 0.5F;
-            armL.xRot = -1.15F; armR.xRot = -1.15F;
-            armL.zRot = 0.35F + 0.6F * c;
-            armR.zRot = -(0.35F + 0.6F * c);
-            head.zRot = Mth.sin(k * 0.5F) * 0.12F;
-        } else if (k < 88.0F) {                            // wind up and throw the diamond
-            float t = (k - 62.0F) / 26.0F;
-            armR.xRot = t < 0.6F
-                    ? Mth.lerp(t / 0.6F, -0.2F, 1.5F)
-                    : Mth.lerp(Math.min(1.0F, (t - 0.6F) / 0.15F), 1.5F, -1.7F);
-            armR.zRot = -0.12F;
-            armL.xRot = -0.9F; armL.zRot = 0.3F;
-        } else if (k < 150.0F) {                           // tip the hat, bow
-            float t = k - 88.0F;
-            float arm = smooth(t / 10.0F) * (1.0F - smooth((t - 52.0F) / 8.0F));
-            float hatUp = smooth((t - 8.0F) / 4.0F) * (1.0F - smooth((t - 48.0F) / 4.0F));
-            float bow = smooth((t - 14.0F) / 14.0F) * (1.0F - smooth((t - 38.0F) / 14.0F));
-            armR.xRot = Mth.lerp(arm, -0.1F, -2.65F);
-            armR.zRot = -0.12F - 0.2F * arm;
-            hat.y = -10.0F - 7.0F * hatUp;
-            hat.xRot = -0.35F * hatUp;
-            body.xRot = 0.6F * bow;
+    private static final float[] REST = new float[N];
+    static {
+        REST[LUZ] = -0.06F; REST[RUZ] = 0.06F; REST[LFX] = -0.12F; REST[RFX] = -0.12F;
+        REST[HATY] = -10.0F; REST[HATZ] = 0.05F;
+    }
+
+    private static void clapPose(float k, float[] o) {
+        float ph = (k - 12.0F) * 1.05F;
+        float c = 0.5F + 0.5F * Mth.sin(ph);
+        float iy = 0.35F + 0.45F * c;
+        o[LUX] = -0.85F; o[LUY] = iy; o[LUZ] = 0.0F;
+        o[RUX] = -0.85F; o[RUY] = -iy; o[RUZ] = 0.0F;
+        o[LFX] = -1.05F; o[RFX] = -1.05F;
+        o[BODYX] = -0.08F;
+        o[BODYY] = -0.5F * Math.abs(Mth.sin(ph));                 // little bounce on every clap
+        o[HEADX] = 0.12F * Mth.sin(ph + 0.6F);                    // nodding
+        o[HEADZ] = 0.08F * Mth.sin((k - 12.0F) * 0.5F);           // swaying
+        o[HATY] = -10.0F;
+        o[HATZ] = 0.05F + 0.05F * Mth.sin(ph + 1.0F);             // hat wobble
+    }
+
+    private static void throwPose(float k, float[] o) {
+        float t = Mth.clamp((k - 62.0F) / 26.0F, 0.0F, 1.0F);
+        float w = sm(t / 0.55F);                 // wind up
+        float r = sm((t - 0.55F) / 0.2F);        // release
+        float f = sm((t - 0.75F) / 0.25F);       // follow through
+        float rux = Mth.lerp(w, -0.25F, 1.15F);
+        rux = Mth.lerp(r, rux, -1.45F);
+        rux = Mth.lerp(f, rux, -0.9F);
+        float rfx = Mth.lerp(w, -0.12F, -1.7F);  // cocked elbow, then the whip
+        rfx = Mth.lerp(r, rfx, -0.08F);
+        rfx = Mth.lerp(f, rfx, -0.5F);
+        float yaw = Mth.lerp(w, 0.0F, -0.35F);
+        yaw = Mth.lerp(r, yaw, 0.28F);
+        yaw = Mth.lerp(f, yaw, 0.1F);
+        o[LUX] = -0.55F; o[LUY] = 0.45F; o[LUZ] = 0.0F;
+        o[RUX] = rux; o[RUY] = 0.0F; o[RUZ] = 0.1F;
+        o[LFX] = -0.9F; o[RFX] = rfx;
+        o[BODYX] = 0.05F * w;
+        o[BODYYAW] = yaw;
+        o[HATY] = -10.0F; o[HATZ] = 0.05F;
+    }
+
+    private static void tipPose(float k, float[] o) {
+        float t = k - 88.0F;
+        float arm = sm(t / 12.0F) * (1.0F - sm((t - 54.0F) / 10.0F));
+        float up = sm((t - 9.0F) / 5.0F) * (1.0F - sm((t - 50.0F) / 5.0F));
+        float bow = sm((t - 16.0F) / 16.0F) * (1.0F - sm((t - 42.0F) / 14.0F));
+        o[LUX] = -0.9F * bow; o[LUY] = 0.55F * bow; o[LUZ] = 0.0F;
+        o[RUX] = -1.75F * arm; o[RUY] = -0.15F * arm; o[RUZ] = 0.06F - 0.55F * arm;
+        o[LFX] = -1.2F * bow - 0.12F * (1.0F - bow);
+        o[RFX] = -2.15F * arm - 0.12F * (1.0F - arm);
+        o[BODYX] = 0.6F * bow;                                    // gentleman's bow
+        o[HEADX] = 0.25F * bow;
+        o[HATPX] = -4.5F * up; o[HATY] = -10.0F - 4.0F * up;      // hat slides to the raised hand and tilts
+        o[HATX] = -0.15F * up; o[HATZ] = 0.05F - 0.45F * up;
+    }
+
+    private void farewell(float k) {
+        float wc = sm((k - 8.0F) / 8.0F) * (1.0F - sm((k - 56.0F) / 8.0F));
+        float wt = sm((k - 56.0F) / 8.0F) * (1.0F - sm((k - 88.0F) / 8.0F));
+        float wh = sm((k - 84.0F) / 10.0F) * (1.0F - sm((k - 146.0F) / 10.0F));
+        float[] c = new float[N], t = new float[N], h = new float[N], v = new float[N];
+        System.arraycopy(REST, 0, c, 0, N); System.arraycopy(REST, 0, t, 0, N); System.arraycopy(REST, 0, h, 0, N);
+        clapPose(k, c); throwPose(k, t); tipPose(k, h);
+        for (int i = 0; i < N; i++) {
+            v[i] = REST[i] + wc * (c[i] - REST[i]) + wt * (t[i] - REST[i]) + wh * (h[i] - REST[i]);
         }
+        if (k < 10.0F) {
+            v[BODYX] += -0.12F * Mth.sin(k * 0.3F);          // recoil right after the transformation
+        }
+        armL.xRot = v[LUX]; armL.yRot = v[LUY]; armL.zRot = v[LUZ];
+        armR.xRot = v[RUX]; armR.yRot = v[RUY]; armR.zRot = v[RUZ];
+        foreL.xRot = v[LFX]; foreR.xRot = v[RFX];
+        body.xRot = v[BODYX]; body.y = 10.0F + v[BODYY]; body.yRot = v[BODYYAW];
+        head.xRot += v[HEADX]; head.zRot = v[HEADZ];
+        hat.x = v[HATPX]; hat.y = v[HATY]; hat.xRot = v[HATX]; hat.zRot = v[HATZ];
     }
 
     @Override

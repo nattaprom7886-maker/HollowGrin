@@ -62,5 +62,13 @@
       }
     ],
     "subtitle": "subtitles.hollowgrin.clap"
+  },
+  "taunt": {
+    "sounds": [
+      {
+        "name": "hollowgrin:taunt"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.taunt"
   }
 }

@@ -6,6 +6,7 @@ import com.hollowgrin.registry.ModSounds;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -26,6 +27,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -69,6 +71,18 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     public static final int RETREAT = 6;
     /** after you break free: he dissolves into the true body, applauds, throws a diamond, tips his hat, vanishes. */
     public static final int FAREWELL = 7;
+    /** player is 3+ blocks up (pillar): he pretends he cannot reach, ... */
+    public static final int PRETEND = 8;
+    /** ... goes still, closes his mouth and speaks, ... */
+    public static final int TAUNT = 9;
+    /** ... then his hands stretch out of the mouth and drag the player to him -> GRAB. */
+    public static final int PULL = 10;
+
+    public static final int PRETEND_TICKS = 70;
+    public static final int TAUNT_SPEECH_AT = 40;       // silence first
+    public static final int TAUNT_SPEECH_TICKS = 205;   // length of taunt.ogg voice
+    private static final int PULL_ARMS_OUT = 14;         // ticks until the long arms have reached you
+    private static final int PULL_TIMEOUT = 80;
 
     private static final EntityDataAccessor<Integer> STATE =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.INT);
@@ -84,6 +98,10 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     /** 0..100: how close the victim is to wrenching free (synced for the HUD bar). */
     private static final EntityDataAccessor<Integer> STRUGGLE =
             SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.INT);
+
+    /** arm stretch factor (1 = normal reach) while his arms extend toward a player far away. */
+    private static final EntityDataAccessor<Float> REACH =
+            SynchedEntityData.defineId(HollowGrinEntity.class, EntityDataSerializers.FLOAT);
 
     private static final ResourceKey<DamageType> SQUEEZE =
             ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(HollowGrinMod.MODID, "squeeze"));
@@ -107,6 +125,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private boolean releasing;
     private boolean variantSet;
     private float struggleF;
+    private int highTicks;
     private int lastStrugglePress = -10;
     private UUID targetId;
 
@@ -136,6 +155,7 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         this.entityData.define(STATE, DISGUISE);
         this.entityData.define(TRUE_FORM, false);
         this.entityData.define(STRUGGLE, 0);
+        this.entityData.define(REACH, 1.0F);
         this.entityData.define(VILLAGER, new VillagerData(VillagerType.PLAINS, VillagerProfession.NONE, 1));
     }
 
@@ -169,6 +189,9 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         if (getState() != state) {
             this.entityData.set(STATE, state);
             this.stateTicks = 0;
+            if (state != PULL) {
+                this.entityData.set(REACH, 1.0F);
+            }
             if (state != GRAB) {
                 this.struggleF = 0.0F;
                 this.entityData.set(STRUGGLE, 0);
@@ -178,6 +201,21 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
 
     public int getStateTicks() {
         return this.stateTicks;
+    }
+
+    public float getReach() {
+        return this.entityData.get(REACH);
+    }
+
+    /** mouth open with hands out: the only time iron golems treat him as an enemy. */
+    public boolean isMawOut() {
+        int s = getState();
+        return s == PRETEND || s == CHASE || s == PULL || s == GRAB || (isTrueForm() && s != FAREWELL);
+    }
+
+    @Override
+    public int getMaxHeadXRot() {
+        return 85;      // lets him look (and reach) straight up at a player on a pillar
     }
 
     public int getStruggle() {
@@ -318,7 +356,28 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             return;
         }
 
+        // counters: lava / fire scare him off (he lets go and leaves)
+        if ((this.isInLava() || this.isOnFire()) && s != RETREAT && s != FAREWELL) {
+            if (s == GRAB) {
+                releaseNow();
+            }
+            setState(RETREAT);
+            this.playSound(ModSounds.REVEAL.get(), 1.6F, 0.7F);
+            return;
+        }
+        if (this.tickCount % 10 == 0 && !isMawOut()) {
+            // iron golems must not attack him while he still looks like a villager
+            for (IronGolem g : this.level().getEntitiesOfClass(IronGolem.class, this.getBoundingBox().inflate(24.0D))) {
+                if (g.getTarget() == this) {
+                    g.setTarget(null);
+                }
+            }
+        }
+
         switch (s) {
+            case PRETEND -> tickPretend(t, dist);
+            case TAUNT -> tickTaunt(t);
+            case PULL -> tickPull(t);
             case DISGUISE -> tickDisguise(t, dist);
             case REVEAL -> tickReveal(t);
             case HOST -> tickHost(t);
@@ -334,6 +393,14 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     // ------------------------------------------------------------------ DISGUISE
 
     private void tickDisguise(ServerPlayer t, double dist) {
+        if (isHighAbove(t)) {
+            if (++this.highTicks > 30) {
+                beginReveal();
+                return;
+            }
+        } else {
+            this.highTicks = 0;
+        }
         if (this.tickCount % 12 == 0) {
             this.getNavigation().moveTo(t, 0.42D * HollowConfig.CHASE_SPEED.get());
         }
@@ -435,20 +502,29 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
 
     private void tickChase(ServerPlayer t, double dist) {
         this.getLookControl().setLookAt(t, 40.0F, 40.0F);
+        boolean wet = t.isInWater();          // a soaked victim is too slippery to hold
+        if (isHighAbove(t)) {
+            if (++this.highTicks >= 12) {
+                beginPretend();
+                return;
+            }
+        } else {
+            this.highTicks = 0;
+        }
         if (this.tickCount % 4 == 0) {
-            this.getNavigation().moveTo(t, 1.0D * HollowConfig.CHASE_SPEED.get());
+            this.getNavigation().moveTo(t, 1.0D * HollowConfig.CHASE_SPEED.get() * (this.isInWater() ? 0.4D : 1.0D));
         }
 
         if (this.lungeCooldown > 0) {
             this.lungeCooldown--;
-        } else if (dist < 7.0D && dist > 3.0D && this.onGround() && this.hasLineOfSight(t)) {
+        } else if (!wet && dist < 7.0D && dist > 3.0D && this.onGround() && this.hasLineOfSight(t)) {
             Vec3 d = t.position().subtract(this.position()).normalize();
             this.setDeltaMovement(d.x * 0.75D, 0.32D, d.z * 0.75D);
             this.hasImpulse = true;
             this.lungeCooldown = 50;
         }
 
-        if (dist < 2.9D && Math.abs(t.getY() - this.getY()) < 3.0D && this.hasLineOfSight(t)) {
+        if (!wet && dist < 2.9D && Math.abs(t.getY() - this.getY()) < 3.0D && this.hasLineOfSight(t)) {
             startGrab(t);
             return;
         }
@@ -458,9 +534,101 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         }
     }
 
+    // ------------------------------------------------------------------ PILLAR TRICK: PRETEND -> TAUNT -> PULL
+
+    /** the player stands 3+ blocks above him, on solid ground, within 12 blocks (horizontally). */
+    private boolean isHighAbove(ServerPlayer t) {
+        double dx = t.getX() - this.getX();
+        double dz = t.getZ() - this.getZ();
+        double horiz = Math.sqrt(dx * dx + dz * dz);
+        return t.getY() - this.getY() >= 2.9D && horiz <= 12.0D && t.onGround() && !t.isInWater() && !t.isPassenger();
+    }
+
+    private void beginPretend() {
+        this.highTicks = 0;
+        setState(PRETEND);
+        this.playSound(ModSounds.JAW.get(), 1.4F, 1.0F);
+    }
+
+    /** mouth open, arms flailing upward - but short of you. He hops under the pillar like a bad actor. */
+    private void tickPretend(ServerPlayer t, double dist) {
+        this.getLookControl().setLookAt(t, 60.0F, 85.0F);
+        if (this.tickCount % 6 == 0) {
+            this.getNavigation().moveTo(t, 0.9D);
+        }
+        if (this.stateTicks % 22 == 10 && this.onGround()) {
+            Vec3 d = new Vec3(t.getX() - getX(), 0.0D, t.getZ() - getZ());
+            d = d.lengthSqr() < 1.0E-4D ? Vec3.ZERO : d.normalize();
+            this.setDeltaMovement(d.x * 0.12D, 0.42D, d.z * 0.12D);       // a hopeless little jump
+            this.hasImpulse = true;
+        }
+        if (t.getY() - this.getY() < 1.5D) {      // you came back down: normal chase again
+            setState(CHASE);
+            return;
+        }
+        if (this.stateTicks >= PRETEND_TICKS) {
+            this.getNavigation().stop();
+            setState(TAUNT);
+        }
+    }
+
+    /** goes completely still, mouth shut, and speaks. Text is also shown on the action bar. */
+    private void tickTaunt(ServerPlayer t) {
+        this.getNavigation().stop();
+        this.getLookControl().setLookAt(t, 60.0F, 85.0F);
+        int k = this.stateTicks;
+        if (k == TAUNT_SPEECH_AT) {
+            this.playSound(ModSounds.TAUNT.get(), 2.2F, 1.0F);
+            t.displayClientMessage(Component.literal("\"Do you really think I can't catch you?\""), true);
+        } else if (k == TAUNT_SPEECH_AT + 64) {
+            t.displayClientMessage(Component.literal("\"Hahaha...\""), true);
+        } else if (k == TAUNT_SPEECH_AT + 90) {
+            t.displayClientMessage(Component.literal("\"What a funny face.\""), true);
+        } else if (k == TAUNT_SPEECH_AT + 127) {
+            t.displayClientMessage(Component.literal("\"Then let's try the next level, shall we?\""), true);
+        }
+        if (k >= TAUNT_SPEECH_AT + TAUNT_SPEECH_TICKS) {
+            setState(PULL);
+            this.playSound(ModSounds.JAW.get(), 1.8F, 0.8F);
+        }
+    }
+
+    /** the hands unfold out of the open mouth, stretch all the way to you, and drag you in. Then the normal squeeze. */
+    private void tickPull(ServerPlayer t) {
+        this.getNavigation().stop();
+        this.getLookControl().setLookAt(t, 90.0F, 85.0F);
+        Vec3 mouth = this.getEyePosition();
+        Vec3 target = t.position().add(0.0D, t.getBbHeight() * 0.6D, 0.0D);
+        double d = mouth.distanceTo(target);
+        this.entityData.set(REACH, (float) Mth.clamp(d / 2.0D, 1.0D, 14.0D));
+
+        if (t.isInWater() || d > 24.0D) {            // slipped out of his grip / too far
+            setState(CHASE);
+            return;
+        }
+        if (this.stateTicks >= PULL_ARMS_OUT) {
+            Vec3 dir = mouth.subtract(t.position().add(0.0D, 0.9D, 0.0D));
+            if (dir.lengthSqr() > 1.0E-4D) {
+                dir = dir.normalize().scale(0.9D);
+                t.setDeltaMovement(dir);
+                t.hurtMarked = true;
+                t.fallDistance = 0.0F;
+            }
+        }
+        if ((this.stateTicks > PULL_ARMS_OUT && d < 3.2D) || this.stateTicks >= PULL_TIMEOUT) {
+            startGrab(t);
+            if (getState() == PULL) {           // startGrab refused (e.g. water): go back to chasing
+                setState(CHASE);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ GRAB
 
     private void startGrab(ServerPlayer t) {
+        if (t.isInWater()) {
+            return;
+        }
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
         this.grabDamageTaken = 0.0F;
@@ -640,6 +808,9 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         int before = getState();
         if (before == FAREWELL) {
             return false;
+        }
+        if (source.getEntity() instanceof IronGolem && !isMawOut()) {
+            return false;       // golems ignore the villager disguise
         }
         if (before == DISGUISE && source.getEntity() instanceof Player) {
             beginReveal();

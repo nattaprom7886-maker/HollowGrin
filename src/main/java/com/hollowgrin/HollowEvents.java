@@ -7,12 +7,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityMountEvent;
+import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
@@ -74,6 +76,16 @@ public class HollowEvents {
                 && host.shouldHoldPassenger()
                 && rider.isAlive() && !rider.isRemoved()
                 && !rider.level().isClientSide) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** Iron golems may only target him while his mouth is open and his hands are out. */
+    @SubscribeEvent
+    public void onGolemTarget(LivingChangeTargetEvent event) {
+        if (event.getEntity() instanceof IronGolem
+                && event.getNewTarget() instanceof HollowGrinEntity host
+                && !host.isMawOut()) {
             event.setCanceled(true);
         }
     }

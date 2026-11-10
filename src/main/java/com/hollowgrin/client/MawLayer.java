@@ -58,7 +58,15 @@ public class MawLayer extends RenderLayer<HollowGrinEntity, VillagerMawModel> {
         float ext = MawAnim.ext(state, st);
         if (ext > 0.02F) {
             float wob = Mth.sin(age * 0.7F);
-            if (state == HollowGrinEntity.GRAB) {
+            if (state == HollowGrinEntity.PULL) {
+                // the arms stay lined up with the head's gaze, which is aimed at you
+                armL.xRot = -0.03F + wob * 0.02F;
+                armR.xRot = -0.03F - wob * 0.02F;
+                armL.yRot = 0.05F;
+                armR.yRot = -0.05F;
+                armL2.xRot = 0.0F;
+                armR2.xRot = 0.0F;
+            } else if (state == HollowGrinEntity.GRAB) {
                 armL.xRot = -0.45F + wob * 0.03F;
                 armR.xRot = -0.45F - wob * 0.03F;
                 armL.yRot = 0.20F;
@@ -74,6 +82,10 @@ public class MawLayer extends RenderLayer<HollowGrinEntity, VillagerMawModel> {
                 armR2.xRot = Mth.sin(age * 1.1F + 1.5F) * 0.25F;
             }
             float z = Math.max(0.05F, ext);
+            if (state == HollowGrinEntity.PULL) {
+                // stretch the noodle arms all the way to the victim
+                z = Mth.lerp(Mth.clamp(st / 14.0F, 0.0F, 1.0F), 1.0F, Math.max(1.0F, e.getReach()));
+            }
             armL.zScale = z;
             armR.zScale = z;
             armL.render(ps, vc, light, ov, 1.0F, 1.0F, 1.0F, 1.0F);
