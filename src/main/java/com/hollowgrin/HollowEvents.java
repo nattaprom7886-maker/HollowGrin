@@ -122,6 +122,12 @@ public class HollowEvents {
                     int n = found.size();
                     ctx.getSource().sendSuccess(() -> Component.literal("Removed " + n + " Hollowgrin."), true);
                     return n;
+                }))
+                .then(Commands.literal("intro").executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                    IntroEvents.start(p);
+                    ctx.getSource().sendSuccess(() -> Component.literal("Playing the Hollowgrin intro."), true);
+                    return 1;
                 })));
     }
 }

@@ -12,6 +12,7 @@ public final class HollowConfig {
     public static final ForgeConfigSpec.IntValue STARE_SECONDS;
     public static final ForgeConfigSpec.IntValue GRAB_BREAK_DAMAGE;
     public static final ForgeConfigSpec.DoubleValue CHASE_SPEED;
+    public static final ForgeConfigSpec.BooleanValue INTRO_ENABLED;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -32,6 +33,8 @@ public final class HollowConfig {
                 .defineInRange("grabBreakDamage", 24, 1, 1000);
         CHASE_SPEED = b.comment("Chase speed multiplier. Lower it if he feels too fast, raise it for more terror.")
                 .defineInRange("chaseSpeed", 1.0D, 0.3D, 3.0D);
+        INTRO_ENABLED = b.comment("Play the black-screen red-eyes intro once when you first enter a NEW Survival world (normal worlds only, not Superflat/Hardcore).")
+                .define("introEnabled", true);
         b.pop();
         SPEC = b.build();
     }

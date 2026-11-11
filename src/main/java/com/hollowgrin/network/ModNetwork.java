@@ -17,5 +17,7 @@ public final class ModNetwork {
     public static void register() {
         CHANNEL.registerMessage(0, StruggleMessage.class,
                 StruggleMessage::encode, StruggleMessage::decode, StruggleMessage::handle);
+        CHANNEL.registerMessage(1, IntroMessage.class,
+                IntroMessage::encode, IntroMessage::decode, IntroMessage::handle);
     }
 }

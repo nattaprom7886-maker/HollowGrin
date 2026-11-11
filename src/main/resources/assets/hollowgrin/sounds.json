@@ -70,5 +70,32 @@
       }
     ],
     "subtitle": "subtitles.hollowgrin.taunt"
+  },
+  "intro_music": {
+    "sounds": [
+      {
+        "name": "hollowgrin:intro_music",
+        "stream": true,
+        "volume": 0.55
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.intro_music"
+  },
+  "intro_voice": {
+    "sounds": [
+      {
+        "name": "hollowgrin:intro_voice",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.intro_voice"
+  },
+  "intro_laugh": {
+    "sounds": [
+      {
+        "name": "hollowgrin:intro_laugh"
+      }
+    ],
+    "subtitle": "subtitles.hollowgrin.laugh"
   }
 }

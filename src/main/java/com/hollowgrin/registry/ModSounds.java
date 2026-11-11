@@ -20,6 +20,9 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> SQUEEZE = reg("squeeze");
     public static final RegistryObject<SoundEvent> CLAP = reg("clap");
     public static final RegistryObject<SoundEvent> TAUNT = reg("taunt");
+    public static final RegistryObject<SoundEvent> INTRO_MUSIC = reg("intro_music");
+    public static final RegistryObject<SoundEvent> INTRO_VOICE = reg("intro_voice");
+    public static final RegistryObject<SoundEvent> INTRO_LAUGH = reg("intro_laugh");
 
     private static RegistryObject<SoundEvent> reg(String name) {
         return SOUNDS.register(name,
