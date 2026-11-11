@@ -3,6 +3,7 @@ package com.hollowgrin.client;
 import com.hollowgrin.HollowGrinMod;
 import com.hollowgrin.entity.HollowGrinEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
@@ -31,6 +32,7 @@ public class HollowGrinRenderer extends MobRenderer<HollowGrinEntity, HostModel>
                 this.addLayer(new VillagerProfessionLayer<HollowGrinEntity, VillagerMawModel>(
                         this, ctx.getResourceManager(), "villager"));
                 this.addLayer(new MawLayer(this, ctx.bakeLayer(ClientSetup.MAW_LAYER)));
+                this.addLayer(new DogHeadLayer(this, ctx.bakeLayer(ModelLayers.WOLF)));
             }
 
             @Override

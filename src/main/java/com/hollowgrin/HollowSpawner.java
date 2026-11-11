@@ -10,7 +10,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -86,6 +88,56 @@ public final class HollowSpawner {
             }
             level.addFreshEntity(host);
             return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Dog trick: puts the disguised Host outdoors in front of the player (10-16 blocks, in sight), back turned.
+     * @return true if he was placed.
+     */
+    public static boolean spawnDogScene(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        if (!level.getEntitiesOfClass(HollowGrinEntity.class, player.getBoundingBox().inflate(200.0D)).isEmpty()) {
+            return false;
+        }
+        List<Villager> villagers = level.getEntitiesOfClass(Villager.class,
+                player.getBoundingBox().inflate(48.0D, 24.0D, 48.0D));
+        Vec3 eye = player.getEyePosition();
+        float baseYaw = player.getYRot();
+        double[] offsets = {0.0D, 25.0D, -25.0D, 50.0D, -50.0D, 80.0D, -80.0D, 120.0D, -120.0D, 180.0D};
+        double[] dists = {12.0D, 10.0D, 14.0D, 16.0D};
+        for (double off : offsets) {
+            for (double dd : dists) {
+                double ang = Math.toRadians(baseYaw + off);
+                int x = Mth.floor(player.getX() - Math.sin(ang) * dd);
+                int z = Mth.floor(player.getZ() + Math.cos(ang) * dd);
+                BlockPos spot = findStandingSpot(level, x, player.getBlockY(), z);
+                if (spot == null || !level.canSeeSky(spot.above())) {
+                    continue;                      // outdoors only
+                }
+                Vec3 head = new Vec3(spot.getX() + 0.5D, spot.getY() + 1.6D, spot.getZ() + 0.5D);
+                if (level.clip(new ClipContext(eye, head, ClipContext.Block.COLLIDER,
+                        ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) {
+                    continue;                      // must be in clear sight
+                }
+                HollowGrinEntity host = ModEntities.HOLLOWGRIN.get().create(level);
+                if (host == null) {
+                    return false;
+                }
+                double dx = spot.getX() + 0.5D - player.getX();
+                double dz = spot.getZ() + 0.5D - player.getZ();
+                float yaw = (float) (Mth.atan2(-dx, dz) * 57.29577951308232D);   // faces away from the player
+                host.moveTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, yaw, 0.0F);
+                host.setTargetPlayer(player);
+                if (!villagers.isEmpty()) {
+                    host.setVillagerData(villagers.get(level.random.nextInt(villagers.size())).getVillagerData());
+                }
+                host.startDogScene(yaw);
+                level.addFreshEntity(host);
+                return true;
+            }
         }
         return false;
     }

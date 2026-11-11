@@ -13,6 +13,8 @@ public final class HollowConfig {
     public static final ForgeConfigSpec.IntValue GRAB_BREAK_DAMAGE;
     public static final ForgeConfigSpec.DoubleValue CHASE_SPEED;
     public static final ForgeConfigSpec.BooleanValue INTRO_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue DOG_TRICK;
+    public static final ForgeConfigSpec.IntValue DOG_AWAY_SECONDS;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -35,6 +37,10 @@ public final class HollowConfig {
                 .defineInRange("chaseSpeed", 1.0D, 0.3D, 3.0D);
         INTRO_ENABLED = b.comment("Play the black-screen red-eyes intro once when you first enter a NEW Survival world (normal worlds only, not Superflat/Hardcore).")
                 .define("introEnabled", true);
+        DOG_TRICK = b.comment("The dog trick: a tamed dog left sitting in a village house vanishes while you are away, Mr. Hollowgrin shows you its head, and you can never tame a dog again.")
+                .define("dogTrick", true);
+        DOG_AWAY_SECONDS = b.comment("Seconds you must stay away (28+ blocks) from your sitting dog before he may take it.")
+                .defineInRange("dogAwaySeconds", 20, 5, 3600);
         b.pop();
         SPEC = b.build();
     }

@@ -1,6 +1,7 @@
 package com.hollowgrin.entity;
 
 import com.hollowgrin.HollowConfig;
+import com.hollowgrin.DogEvents;
 import com.hollowgrin.HollowGrinMod;
 import com.hollowgrin.registry.ModSounds;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
@@ -17,6 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -33,6 +35,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.BodyRotationControl;
+import net.minecraft.world.entity.ai.control.LookControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
@@ -77,6 +81,13 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     public static final int TAUNT = 9;
     /** ... then his hands stretch out of the mouth and drag the player to him -> GRAB. */
     public static final int PULL = 10;
+
+    /** DOG TRICK (after he took your dog): back turned -> head turns around -> stares -> body turns -> shows the dog's head -> gone. */
+    public static final int DOG_BACK = 11;
+    public static final int DOG_HEAD = 12;
+    public static final int DOG_STARE = 13;
+    public static final int DOG_TURN = 14;
+    public static final int DOG_SHOW = 15;
 
     public static final int PRETEND_TICKS = 70;
     public static final int TAUNT_SPEECH_AT = 40;       // silence first
@@ -128,6 +139,8 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     private int highTicks;
     private int lastStrugglePress = -10;
     private UUID targetId;
+    private float dogYaw;            // the direction his back faces during the dog trick
+    private int dogWatched;          // ticks the player has looked at his back
 
     public HollowGrinEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -136,6 +149,30 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         if (this.getNavigation() instanceof GroundPathNavigation nav) {
             nav.setCanOpenDoors(true);
         }
+        // during the dog trick his head is turned by hand: vanilla look control must not pull it back
+        this.lookControl = new LookControl(this) {
+            @Override
+            public void tick() {
+                if (!isDogScene()) {
+                    super.tick();
+                }
+            }
+        };
+    }
+
+    /** body stays exactly where it is while his head turns around (dog trick). */
+    @Override
+    protected BodyRotationControl createBodyControl() {
+        return new BodyRotationControl(this) {
+            @Override
+            public void clientTick() {
+                if (isDogScene()) {
+                    HollowGrinEntity.this.yBodyRot = HollowGrinEntity.this.getYRot();
+                } else {
+                    super.clientTick();
+                }
+            }
+        };
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -252,6 +289,30 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
     public boolean isDisguised() {
         int s = getState();
         return s == DISGUISE || s == REVEAL;
+    }
+
+    public boolean isDogScene() {
+        int s = getState();
+        return s >= DOG_BACK && s <= DOG_SHOW;
+    }
+
+    /** the dog-trick scene is never written to disk (after a reload he would otherwise wake up as a chasing villager). */
+    @Override
+    public boolean shouldBeSaved() {
+        return !isDogScene() && super.shouldBeSaved();
+    }
+
+    /** starts the dog trick: he stands with his back to the player, facing {@code yaw}. */
+    public void startDogScene(float yaw) {
+        this.dogYaw = yaw;
+        this.dogWatched = 0;
+        this.setYRot(yaw);
+        this.yRotO = yaw;
+        this.yBodyRot = yaw;
+        this.yBodyRotO = yaw;
+        this.yHeadRot = yaw;
+        this.yHeadRotO = yaw;
+        setState(DOG_BACK);
     }
 
     public void setTargetPlayer(Player player) {
@@ -386,6 +447,11 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
             case STUNNED -> tickStunned();
             case RETREAT -> tickRetreat();
             case FAREWELL -> tickFarewell(t);
+            case DOG_BACK -> tickDogBack(t, dist);
+            case DOG_HEAD -> tickDogHead(t);
+            case DOG_STARE -> tickDogStare(t);
+            case DOG_TURN -> tickDogTurn(t);
+            case DOG_SHOW -> tickDogShow(t);
             default -> setState(DISGUISE);
         }
     }
@@ -771,6 +837,104 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         this.playSound(SoundEvents.SNOWBALL_THROW, 1.0F, 0.9F);
     }
 
+    // ------------------------------------------------------------------ DOG TRICK
+    //   BACK   : stands far away with his back to you, humming (until you have looked at him for a while)
+    //   HEAD   : only his head turns slowly all the way around to look at you
+    //   STARE  : stares, body still, your heartbeat gets louder
+    //   TURN   : the whole body spins to face you
+    //   SHOW   : holds up your dog's head, whimpers, laughs, vanishes. From now on you can never tame a dog again.
+
+    private float yawTo(ServerPlayer t) {
+        double dx = t.getX() - this.getX();
+        double dz = t.getZ() - this.getZ();
+        return (float) (Mth.atan2(-dx, dz) * 57.29577951308232D);
+    }
+
+    private void holdPose(float bodyYaw, float headYaw) {
+        this.getNavigation().stop();
+        this.setYRot(bodyYaw);
+        this.yBodyRot = bodyYaw;
+        this.setYHeadRot(headYaw);
+        this.setXRot(0.0F);
+    }
+
+    private static float ease(float k) {
+        k = Mth.clamp(k, 0.0F, 1.0F);
+        return k * k * (3.0F - 2.0F * k);
+    }
+
+    private void tickDogBack(ServerPlayer t, double dist) {
+        holdPose(this.dogYaw, this.dogYaw);
+        if (this.stateTicks % 70 == 20) {
+            this.playSound(ModSounds.HUM.get(), 0.45F, 0.9F);
+        }
+        if (this.tickCount % 50 == 0) {
+            unsettleVillagers();
+        }
+        if (isBeingLookedAt(t, dist)) {
+            this.dogWatched++;
+        }
+        if (this.stateTicks >= 60 && (this.dogWatched >= 30 || dist < 9.0D)) {
+            setState(DOG_HEAD);
+            this.playSound(ModSounds.REVEAL.get(), 1.0F, 0.6F);
+            return;
+        }
+        if (this.stateTicks > 20 * 45) {
+            DogEvents.curse(t);        // you never looked: the dog is gone all the same
+            vanish(true);
+        }
+    }
+
+    private void tickDogHead(ServerPlayer t) {
+        float k = ease(this.stateTicks / 70.0F);
+        float head = this.dogYaw + Mth.wrapDegrees(yawTo(t) - this.dogYaw) * k;
+        holdPose(this.dogYaw, head);
+        if (this.stateTicks >= 70) {
+            setState(DOG_STARE);
+        }
+    }
+
+    private void tickDogStare(ServerPlayer t) {
+        holdPose(this.dogYaw, yawTo(t));
+        if (this.stateTicks % 18 == 0) {
+            t.playNotifySound(ModSounds.HEARTBEAT.get(), SoundSource.HOSTILE, 0.8F, 0.9F);
+        }
+        if (this.stateTicks >= 50) {
+            setState(DOG_TURN);
+            this.playSound(ModSounds.REVEAL.get(), 1.4F, 0.8F);
+        }
+    }
+
+    private void tickDogTurn(ServerPlayer t) {
+        float target = yawTo(t);
+        float k = ease(this.stateTicks / 26.0F);
+        float body = this.dogYaw + Mth.wrapDegrees(target - this.dogYaw) * k;
+        holdPose(body, target);
+        if (this.stateTicks >= 26) {
+            DogEvents.curse(t);
+            setState(DOG_SHOW);
+        }
+    }
+
+    private void tickDogShow(ServerPlayer t) {
+        float target = yawTo(t);
+        holdPose(target, target);
+        int k = this.stateTicks;
+        if (k == 8) {
+            this.playSound(SoundEvents.WOLF_WHINE, 1.6F, 0.55F);
+        }
+        if (k == 50) {
+            this.playSound(ModSounds.LAUGH.get(), 1.2F, 0.75F);
+        }
+        if (k >= 82 && k < 100 && k % 2 == 0 && this.level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.5D, getZ(),
+                    6, 0.6D, 0.9D, 0.6D, 0.02D);
+        }
+        if (k >= 100) {
+            vanish(true);
+        }
+    }
+
     // ------------------------------------------------------------------ STUNNED / RETREAT
 
     private void tickStunned() {
@@ -808,6 +972,9 @@ public class HollowGrinEntity extends Monster implements VillagerDataHolder {
         int before = getState();
         if (before == FAREWELL) {
             return false;
+        }
+        if (isDogScene() && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            return false;       // the dog trick cannot be interrupted
         }
         if (source.getEntity() instanceof IronGolem && !isMawOut()) {
             return false;       // golems ignore the villager disguise

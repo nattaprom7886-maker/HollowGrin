@@ -123,6 +123,20 @@ public class HollowEvents {
                     ctx.getSource().sendSuccess(() -> Component.literal("Removed " + n + " Hollowgrin."), true);
                     return n;
                 }))
+                .then(Commands.literal("dog").executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                    boolean ok = HollowSpawner.spawnDogScene(p);
+                    ctx.getSource().sendSuccess(() -> Component.literal(ok
+                            ? "The dog trick has begun: he stands in front of you with his back turned. (You will no longer be able to tame dogs; use /hollowgrin dogreset to undo.)"
+                            : "Could not place him (is he already here, or is there no open ground in front of you?)"), true);
+                    return ok ? 1 : 0;
+                }))
+                .then(Commands.literal("dogreset").executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                    DogEvents.lift(p);
+                    ctx.getSource().sendSuccess(() -> Component.literal("You can tame dogs again."), true);
+                    return 1;
+                }))
                 .then(Commands.literal("intro").executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayerOrException();
                     IntroEvents.start(p);

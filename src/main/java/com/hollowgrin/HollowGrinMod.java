@@ -26,5 +26,6 @@ public class HollowGrinMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, HollowConfig.SPEC);
         MinecraftForge.EVENT_BUS.register(new HollowEvents());
         MinecraftForge.EVENT_BUS.register(new IntroEvents());
+        MinecraftForge.EVENT_BUS.register(new DogEvents());
     }
 }
