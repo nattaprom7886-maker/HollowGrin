@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textures for Mr. Hollowgrin v1.1 (host.png + host_glow.png, 128x192).
+"""Textures for Mr. Hollowgrin v1.7 (host.png + host_glow.png, 128x192).
 The villager disguise now uses the vanilla villager texture, so nothing is generated for it.
 UV offsets MUST match HostModel.java."""
 import os
@@ -56,39 +56,70 @@ def pinstripe(base, stripe, period=3, grain=0.05):
 
 T = Tex(128, 192)
 
-# ---- torso 20x16x14 @ (0,0)
-def torso_front(x, y, w, h, n):
-    if y < 4 and 8 <= x <= 11 and y < 4 - abs(x - 9.5) * 0.8:
-        return shade(SHIRT, n * 0.04)
-    return shade(STRIPE if x % 3 == 0 else COAT, n * 0.05)
-paint(T, (0, 0, 20, 16, 14), {"front": torso_front, "back": pinstripe(COAT, STRIPE)}, solid(COAT))
+SHIRT_D = (190, 184, 172)
+OVER = (46, 50, 62); OVER_D = (30, 33, 42); OVER_L = (70, 76, 92); RIVET = (176, 150, 70)
+SOCKET = (4, 2, 6); BAG = (74, 66, 72)
 
-# ---- belly 18x13x6 @ (0,30): waistcoat
-def belly_front(x, y, w, h, n):
-    if x in (8, 9) and y in (1, 4, 7, 10):
-        return BUTTON
-    if y == 8 and 2 <= x <= 6:
-        return (178, 150, 60)
-    if x in (0, 17):
-        return shade(COAT, 0.05)
-    return shade(VEST, n * 0.05 + (0.04 if (x // 2) % 2 else 0))
-paint(T, (0, 30, 18, 13, 6), {"front": belly_front}, solid(COAT))
+# ---- chest 16x10x8 @ (0,0): shirt + overall straps
+def strap_cols(x): return x in (4, 5, 10, 11)
+def chest_front(x, y, w, h, n):
+    if strap_cols(x):
+        if y == 5 and x in (4, 11): return RIVET
+        return shade(OVER, n * 0.05)
+    return shade(SHIRT if y > 0 else SHIRT_D, n * 0.04 - (0.08 if x in (0, 15) else 0))
+def chest_back(x, y, w, h, n):
+    if strap_cols(x) or y == 9:
+        return shade(OVER, n * 0.05)
+    return shade(SHIRT_D, n * 0.04)
+def chest_top(x, y, w, h, n):
+    return shade(OVER, n * 0.05) if strap_cols(x) else shade(SHIRT, n * 0.04)
+paint(T, (0, 0, 16, 10, 8), {"front": chest_front, "back": chest_back, "top": chest_top}, solid(SHIRT_D, 0.04))
 
-# ---- legs 6x14x6 @ (0,49)
+# ---- waist 11x4x6 @ (0,20)
+paint(T, (0, 20, 11, 4, 6), {}, lambda x, y, w, h, n: shade(OVER_D if y == h - 1 else OVER, n * 0.05))
+
+# ---- bib 8x8x1 @ (0,32)
+def bib_front(x, y, w, h, n):
+    if (x, y) in ((0, 0), (7, 0)): return RIVET
+    if 1 <= x <= 6 and 4 <= y <= 6 and (x in (1, 6) or y in (4, 6)):
+        return shade(OVER_L, n * 0.05)                    # chest pocket stitching
+    return shade(OVER, n * 0.06)
+paint(T, (0, 32, 8, 8, 1), {"front": bib_front}, solid(OVER_D))
+
+# ---- neck 4x5x4 @ (24,32): long, tendons showing
+def neck(x, y, w, h, n):
+    c = shade(SKIN, n * 0.05 - 0.05)
+    if x in (0, 3) or (y in (1, 3) and x in (1, 2)):
+        c = shade(SKIN_D, -0.2 + n * 0.04)
+    return c
+paint(T, (24, 32, 4, 5, 4), {}, neck)
+
+# ---- ear 2x5x3 @ (44,32), nose 2x3x2 @ (56,32)
+paint(T, (44, 32, 2, 5, 3), {}, lambda x, y, w, h, n: shade(SKIN_D if x == 0 else SKIN, n * 0.05 - 0.05))
+paint(T, (56, 32, 2, 3, 2), {}, lambda x, y, w, h, n: shade(SKIN, n * 0.04 + (0.05 if y == 0 else -0.12 if y == h - 1 else 0)))
+
+# ---- legs 5x14x5 @ (0,49): overalls + black boots
 def leg(x, y, w, h, n):
     if y >= 11:
         return shade((12, 10, 14), n * 0.1 + (0.5 if y == 11 else 0))
-    return shade(TROUSER_S if x % 3 == 1 else TROUSER, n * 0.05)
-paint(T, (0, 49, 6, 14, 6), {}, leg)
+    if y == 10:
+        return shade(OVER_L, n * 0.05)                    # rolled cuff
+    return shade(OVER_D if x in (0, w - 1) else OVER, n * 0.05)
+paint(T, (0, 49, 5, 14, 5), {}, leg)
 
-# ---- arms 7x16x7 @ (0,70)
-def arm(x, y, w, h, n):
-    if y >= 12:
-        return shade(SHIRT, n * 0.04 - (0.1 if y == 12 else 0))
-    return shade(STRIPE if x % 3 == 0 else COAT, n * 0.05)
-paint(T, (0, 70, 7, 16, 7), {}, arm)
+# ---- arms: bare, muscular, veins. upper 5x9x5 @ (0,70), forearm 5x9x5 @ (0,86)
+def upper_arm(x, y, w, h, n):
+    c = shade(SKIN, n * 0.05 - (0.1 if x in (0, w - 1) else 0))
+    return c
+def fore_arm(x, y, w, h, n):
+    c = shade(SKIN, n * 0.05 - (0.1 if x in (0, w - 1) else 0))
+    if (x * 3 + y * 5) % 13 == 0: c = shade(SKIN_D, -0.25)       # veins
+    if y >= h - 1: c = shade(SHIRT_D, n * 0.04)           # cuff
+    return c
+paint(T, (0, 70, 5, 9, 5), {}, upper_arm)
+paint(T, (0, 86, 5, 9, 5), {}, fore_arm)
 
-# ---- glove 7x6x7 @ (28,70)
+# ---- glove 5x6x5 @ (28,70)
 def glove(x, y, w, h, n):
     if y == 0 or y == h - 1:
         return GLOVE_D
@@ -98,65 +129,71 @@ def glove(x, y, w, h, n):
     if (x * 7 + y * 13) % 31 == 0:
         c = STAIN
     return c
-paint(T, (28, 70, 7, 6, 7), {}, glove)
+paint(T, (28, 70, 5, 6, 5), {}, glove)
 
-# ---- head 16x10x14 @ (68,0)
+# ---- head 10x12x9 @ (68,0): long face, huge hollow sockets, ear-to-ear grin
+def socket_cells(x0):
+    cells = set()
+    for y in range(2, 7):
+        for x in range(x0, x0 + 3):
+            if y in (2, 6) and x in (x0, x0 + 2) and y == 6:
+                continue
+            cells.add((x, y))
+    return cells
+SOCK = socket_cells(1) | socket_cells(6)
 def head_front(x, y, w, h, n):
+    if (x, y) in SOCK:
+        return shade(SOCKET, n * 0.2)
     c = shade(SKIN, n * 0.05)
-    for ex in (3, 9):                                    # hollow eye sockets, 4x4
-        if ex <= x < ex + 4 and 2 <= y < 6:
-            return (4, 2, 6) if (ex < x < ex + 3 or y in (3, 4)) else (22, 12, 24)
-        if ex - 1 <= x <= ex + 4 and 1 <= y <= 6:
-            c = shade(SKIN_D, -0.25 + n * 0.05)
-    if y == 0 and 2 <= x <= 13:
-        c = shade(SKIN_D, -0.3)
-    if y in (5, 6) and x in (7, 8):
-        c = shade(SKIN, -0.14)
-    if y == 6 and (x <= 1 or x >= 14):
-        return GUM                                       # smile corners curl up
-    if y == 7:
-        return GUM if x % 3 != 1 else TOOTH
-    if y in (8, 9):
-        return TOOTH if x % 3 == 1 else (GUM if y == 8 else shade(GUM, -0.5))
+    if y <= 1:
+        c = shade(SKIN_D, -0.22 + n * 0.04)                # shadow under the hat
+    # eye bags / dark smudge around the sockets
+    near = any(abs(x - sx) <= 1 and abs(y - sy) <= 1 for sx, sy in SOCK)
+    if near: c = shade(BAG, n * 0.05)
+    if y == 7 and (x in (1, 2, 3, 6, 7, 8)): c = shade(BAG, -0.25)
+    if x in (4, 5) and 4 <= y <= 8: c = shade(SKIN, -0.1 + n * 0.04)   # bridge + nose shadow
+    # grin: gum line + needle teeth, curling up at the cheeks
+    if y == 8 and (x <= 1 or x >= 8): return GUM
+    if y == 9: return GUM
+    if y == 10: return TOOTH if x % 2 == 0 else shade(GUM, -0.5)
+    if y == 11: return TOOTH if x % 2 == 0 else (14, 6, 10)
     return c
 def head_side(front_edge_right):
     def fn(x, y, w, h, n):
-        near = (x >= w - 6) if front_edge_right else (x < 6)
-        if near and y in (7, 8):
-            return GUM
-        if near and y == 9:
-            return TOOTH
+        near = (x >= w - 3) if front_edge_right else (x < 3)
+        if near and y in (9, 10): return GUM
+        if near and y == 11: return TOOTH
         return shade(SKIN, n * 0.05 - 0.05)
     return fn
 def mouth_bottom(x, y, w, h, n):
-    if x < 2 or x >= w - 2 or y < 2 or y >= h - 2:
-        return TOOTH if (x + y) % 3 == 0 else shade(GUM, -0.3)
+    if x < 1 or x >= w - 1 or y < 1 or y >= h - 1:
+        return TOOTH if (x + y) % 2 == 0 else shade(GUM, -0.3)
     return shade(GUM, n * 0.1)
-paint(T, (68, 0, 16, 10, 14), {"front": head_front, "right": head_side(True), "left": head_side(False),
+paint(T, (68, 0, 10, 12, 9), {"front": head_front, "right": head_side(True), "left": head_side(False),
                               "bottom": mouth_bottom, "top": solid(shade(SKIN, -0.2))}, solid(shade(SKIN, -0.1)))
 
-# ---- jaw 15x5x13 @ (68,24)
+# ---- jaw 9x4x9 @ (68,24)
 def jaw_front(x, y, w, h, n):
     if y <= 1:
-        return TOOTH if x % 3 == 0 else shade(GUM, -0.4)
+        return TOOTH if x % 2 == 1 else shade(GUM, -0.4)
     if y == 2:
-        return TOOTH if x % 3 == 0 else SKIN_D
-    return shade(SKIN, n * 0.05 - (0.08 if y == 4 else 0))
+        return shade(GUM, -0.2)
+    return shade(SKIN, n * 0.05 - 0.08)
 def jaw_top(x, y, w, h, n):
-    if x < 2 or x >= w - 2 or y >= h - 2:
-        return TOOTH if (x + y) % 3 == 1 else shade(GUM, -0.3)
-    if 4 <= x <= 10 and 2 <= y <= 9:
-        return shade(TONGUE, n * 0.08 - 0.1 * (abs(x - 7) / 3.0))
+    if x < 1 or x >= w - 1 or y >= h - 1:
+        return TOOTH if (x + y) % 2 == 1 else shade(GUM, -0.3)
+    if 2 <= x <= 6 and 2 <= y <= 7:
+        return shade(TONGUE, n * 0.08 - 0.1 * (abs(x - 4) / 2.0))
     return shade(GUM, n * 0.1)
-paint(T, (68, 24, 15, 5, 13), {"front": jaw_front, "top": jaw_top}, solid(shade(SKIN, -0.08)))
+paint(T, (68, 24, 9, 4, 9), {"front": jaw_front, "top": jaw_top}, solid(shade(SKIN, -0.08)))
 
-# ---- hat: brim 20x2x20 @ (0,96), crown 12x12x12 @ (68,42), band 13x3x13 @ (68,66)
-paint(T, (0, 96, 20, 2, 20), {"bottom": solid(shade(HAT, -0.4))}, solid(HAT, 0.1))
-paint(T, (68, 42, 12, 12, 12), {}, lambda x, y, w, h, n: shade(HAT, n * 0.1 + (0.18 if x in (2, 3) else 0)))
-paint(T, (68, 66, 13, 3, 13), {}, solid(BAND, 0.08))
-paint(T, (68, 84, 4, 3, 1), {}, lambda x, y, w, h, n: shade(BOW, n * 0.08 + (0.15 if y == 0 else 0)))
-paint(T, (80, 84, 3, 3, 2), {}, solid(shade(BOW, -0.25), 0.06))
-paint(T, (92, 84, 2, 2, 2), {}, solid((235, 20, 20), 0.05))      # eyeball
+# ---- hat: brim 18x2x18 @ (0,100), crown 11x14x11 @ (68,42), band 12x3x12 @ (68,70)
+paint(T, (0, 100, 18, 2, 18), {"bottom": solid(shade(HAT, -0.4))}, solid(HAT, 0.1))
+paint(T, (68, 42, 11, 14, 11), {}, lambda x, y, w, h, n: shade(HAT, n * 0.1 + (0.18 if x in (2, 3) else 0)))
+paint(T, (68, 70, 12, 3, 12), {}, solid(BAND, 0.08))
+paint(T, (68, 88, 4, 3, 1), {}, lambda x, y, w, h, n: shade(BOW, n * 0.08 + (0.15 if y == 0 else 0)))
+paint(T, (80, 88, 3, 3, 2), {}, solid(shade(BOW, -0.25), 0.06))
+paint(T, (92, 88, 1, 1, 1), {}, solid((235, 20, 20), 0.05))      # eyeball
 
 # ---- mouth arms: seg 3x3x14 @ (0,122), palm 6x5x5 @ (50,122), fingers @ (36,122)
 def maw_arm(x, y, w, h, n):
@@ -171,9 +208,9 @@ T.save("host.png")
 
 # ---- glow: eyes + red inside of the open mouth
 G = Tex(128, 192)
-paint(G, (92, 84, 2, 2, 2), {}, solid((255, 40, 40), 0.0))
-G.fill_rect(faces(68, 0, 16, 10, 14)["bottom"], lambda x, y, w, h, n: (96, 0, 8))
-G.fill_rect(faces(68, 24, 15, 5, 13)["top"], lambda x, y, w, h, n: (96, 0, 8))
+paint(G, (92, 88, 1, 1, 1), {}, solid((255, 40, 40), 0.0))
+G.fill_rect(faces(68, 0, 10, 12, 9)["bottom"], lambda x, y, w, h, n: (96, 0, 8))
+G.fill_rect(faces(68, 24, 9, 4, 9)["top"], lambda x, y, w, h, n: (96, 0, 8))
 G.save("host_glow.png")
 
 old = os.path.join(OUT, "disguise.png")

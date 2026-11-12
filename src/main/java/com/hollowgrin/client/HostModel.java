@@ -14,11 +14,11 @@ import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.util.Mth;
 
 /**
- * The true body of Mr. Hollowgrin (v1.4): round gentleman, wide head, modest top hat with a bow,
- * hollow eyes with small red eyeballs, needle-tooth grin, white gloves, jointed arms (shoulder + elbow).
+ * The true body of Mr. Hollowgrin (v1.7, redrawn after the concept sketch): tall and lean, huge shoulders, long neck,
+ * long narrow face with big ears, huge black hollow eyes with tiny red eyeballs, ear-to-ear needle-tooth grin,
+ * tall top hat with a wide flat brim, overalls, white gloves, jointed arms (shoulder + elbow).
  * Texture layout: 128 x 192 (see tools/make_textures.py - the UV offsets below must stay in sync).
- * The upper arm / forearm split reuses the original arm UV area, so the texture looks identical.
- */
+ *  */
 public class HostModel extends EntityModel<HollowGrinEntity> {
     private final ModelPart root;
     private final ModelPart body, head, jaw, hat, armL, armR, foreL, foreR, legL, legR, eyeL, eyeR;
@@ -48,48 +48,61 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition r = mesh.getRoot();
 
-        CubeListBuilder leg = CubeListBuilder.create().texOffs(0, 49).addBox(-3.0F, 0.0F, -3.0F, 6, 14, 6);
-        r.addOrReplaceChild("legL", leg, PartPose.offset(4.5F, 10.0F, 0.0F));
-        r.addOrReplaceChild("legR", leg, PartPose.offset(-4.5F, 10.0F, 0.0F));
+        // long, thin legs (overalls + black boots)
+        CubeListBuilder leg = CubeListBuilder.create().texOffs(0, 49).addBox(-2.5F, 0.0F, -2.5F, 5, 14, 5);
+        r.addOrReplaceChild("legL", leg, PartPose.offset(3.0F, 10.0F, 0.0F));
+        r.addOrReplaceChild("legR", leg, PartPose.offset(-3.0F, 10.0F, 0.0F));
 
+        // very broad shoulders, narrow waist, long neck, overalls bib on the chest
         PartDefinition body = r.addOrReplaceChild("body", CubeListBuilder.create()
-                .texOffs(0, 0).addBox(-10.0F, -16.0F, -7.0F, 20, 16, 14)
-                .texOffs(0, 30).addBox(-9.0F, -11.0F, -12.0F, 18, 13, 6),
+                .texOffs(0, 0).addBox(-8.0F, -14.0F, -4.0F, 16, 10, 8)          // chest / shoulders
+                .texOffs(0, 20).addBox(-5.5F, -4.0F, -3.0F, 11, 4, 6)           // waist
+                .texOffs(0, 32).addBox(-4.0F, -13.0F, -5.0F, 8, 8, 1)           // overalls bib
+                .texOffs(24, 32).addBox(-2.0F, -18.0F, -2.0F, 4, 5, 4),         // long neck
                 PartPose.offset(0.0F, 10.0F, 0.0F));
 
+        // tall narrow face: 10 wide x 12 tall (+4 of jaw), huge hollow eye sockets, big ears
         PartDefinition head = body.addOrReplaceChild("head", CubeListBuilder.create()
-                .texOffs(68, 0).addBox(-8.0F, -10.0F, -7.0F, 16, 10, 14),
-                PartPose.offset(0.0F, -21.0F, 0.0F));
+                .texOffs(68, 0).addBox(-5.0F, -12.0F, -4.5F, 10, 12, 9),
+                PartPose.offset(0.0F, -18.0F, 0.0F));
         head.addOrReplaceChild("jaw", CubeListBuilder.create()
-                .texOffs(68, 24).addBox(-7.5F, 0.0F, -11.0F, 15, 5, 13),
-                PartPose.offset(0.0F, 0.0F, 4.0F));
+                .texOffs(68, 24).addBox(-4.5F, 0.0F, -7.5F, 9, 4, 9),
+                PartPose.offset(0.0F, 0.0F, 3.0F));
+        head.addOrReplaceChild("nose", CubeListBuilder.create()
+                .texOffs(56, 32).addBox(-1.0F, -1.5F, -2.0F, 2, 3, 2),
+                PartPose.offset(0.0F, -5.5F, -4.5F));
+        head.addOrReplaceChild("earL", CubeListBuilder.create()
+                .texOffs(44, 32).addBox(0.0F, -4.0F, -1.5F, 2, 5, 3), PartPose.offset(5.0F, -5.0F, 0.0F));
+        head.addOrReplaceChild("earR", CubeListBuilder.create()
+                .texOffs(44, 32).addBox(-2.0F, -4.0F, -1.5F, 2, 5, 3), PartPose.offset(-5.0F, -5.0F, 0.0F));
 
+        // tall top hat with a wide flat brim (pivot sits 2px above the head top; the animation code relies on y = -10)
         PartDefinition hat = head.addOrReplaceChild("hat", CubeListBuilder.create()
-                .texOffs(0, 96).addBox(-10.0F, -1.0F, -10.0F, 20, 2, 20)
-                .texOffs(68, 42).addBox(-6.0F, -13.0F, -6.0F, 12, 12, 12)
-                .texOffs(68, 66).addBox(-6.5F, -4.0F, -6.5F, 13, 3, 13),
+                .texOffs(0, 100).addBox(-9.0F, -3.0F, -9.0F, 18, 2, 18)          // brim
+                .texOffs(68, 42).addBox(-5.5F, -17.0F, -5.5F, 11, 14, 11)        // crown
+                .texOffs(68, 70).addBox(-6.0F, -6.0F, -6.0F, 12, 3, 12),         // band
                 PartPose.offsetAndRotation(0.0F, -10.0F, 0.0F, 0.0F, 0.0F, 0.05F));
         hat.addOrReplaceChild("bowKnot", CubeListBuilder.create()
-                .texOffs(80, 84).addBox(-1.5F, -3.5F, -8.5F, 3, 3, 2), PartPose.ZERO);
+                .texOffs(80, 88).addBox(-1.5F, -6.0F, -7.5F, 3, 3, 2), PartPose.ZERO);
         hat.addOrReplaceChild("bowL", CubeListBuilder.create()
-                .texOffs(68, 84).addBox(-6.0F, -4.0F, -7.5F, 4, 3, 1), PartPose.ZERO);
+                .texOffs(68, 88).addBox(1.5F, -6.5F, -7.0F, 4, 3, 1), PartPose.ZERO);
         hat.addOrReplaceChild("bowR", CubeListBuilder.create()
-                .texOffs(68, 84).addBox(2.0F, -4.0F, -7.5F, 4, 3, 1), PartPose.ZERO);
+                .texOffs(68, 88).addBox(-5.5F, -6.5F, -7.0F, 4, 3, 1), PartPose.ZERO);
 
-        CubeListBuilder eye = CubeListBuilder.create().texOffs(92, 84).addBox(-1.0F, -1.0F, -1.0F, 2, 2, 2);
-        head.addOrReplaceChild("eyeL", eye, PartPose.offset(3.0F, -6.0F, -6.7F));
-        head.addOrReplaceChild("eyeR", eye, PartPose.offset(-3.0F, -6.0F, -6.7F));
+        CubeListBuilder eye = CubeListBuilder.create().texOffs(92, 88).addBox(-0.5F, -0.5F, -0.5F, 1, 1, 1);
+        head.addOrReplaceChild("eyeL", eye, PartPose.offset(2.5F, -7.5F, -4.3F));
+        head.addOrReplaceChild("eyeR", eye, PartPose.offset(-2.5F, -7.5F, -4.3F));
 
-        // jointed arms: upper arm (shoulder) -> forearm (elbow) -> glove
-        CubeListBuilder upper = CubeListBuilder.create().texOffs(0, 70).addBox(-3.5F, -2.0F, -3.5F, 7, 8, 7);
-        CubeListBuilder fore = CubeListBuilder.create().texOffs(0, 78).addBox(-3.5F, 0.0F, -3.5F, 7, 8, 7);
-        CubeListBuilder glove = CubeListBuilder.create().texOffs(28, 70).addBox(-3.5F, 0.0F, -3.5F, 7, 6, 7);
-        PartDefinition aL = body.addOrReplaceChild("armL", upper, PartPose.offset(13.0F, -13.0F, 0.0F));
+        // long muscular arms: shoulder -> elbow -> white glove
+        CubeListBuilder upper = CubeListBuilder.create().texOffs(0, 70).addBox(-2.5F, -2.5F, -2.5F, 5, 9, 5);
+        CubeListBuilder fore = CubeListBuilder.create().texOffs(0, 86).addBox(-2.5F, 0.0F, -2.5F, 5, 9, 5);
+        CubeListBuilder glove = CubeListBuilder.create().texOffs(28, 70).addBox(-2.5F, 0.0F, -2.5F, 5, 6, 5);
+        PartDefinition aL = body.addOrReplaceChild("armL", upper, PartPose.offset(10.5F, -12.0F, 0.0F));
         aL.addOrReplaceChild("foreL", fore, PartPose.offset(0.0F, 6.0F, 0.0F))
-                .addOrReplaceChild("handL", glove, PartPose.offset(0.0F, 7.0F, 0.0F));
-        PartDefinition aR = body.addOrReplaceChild("armR", upper, PartPose.offset(-13.0F, -13.0F, 0.0F));
+                .addOrReplaceChild("handL", glove, PartPose.offset(0.0F, 8.0F, 0.0F));
+        PartDefinition aR = body.addOrReplaceChild("armR", upper, PartPose.offset(-10.5F, -12.0F, 0.0F));
         aR.addOrReplaceChild("foreR", fore, PartPose.offset(0.0F, 6.0F, 0.0F))
-                .addOrReplaceChild("handR", glove, PartPose.offset(0.0F, 7.0F, 0.0F));
+                .addOrReplaceChild("handR", glove, PartPose.offset(0.0F, 8.0F, 0.0F));
 
         addMawArm(head, "mawL", 3.0F);
         addMawArm(head, "mawR", -3.0F);
@@ -206,10 +219,10 @@ public class HostModel extends EntityModel<HollowGrinEntity> {
         }
 
         float tw = Mth.sin(age * 0.37F) * Mth.sin(age * 0.11F);
-        eyeL.x = 3.0F + tw * 0.6F;
-        eyeR.x = -3.0F + tw * 0.6F;
-        eyeL.y = -6.0F + Mth.cos(age * 0.29F) * 0.3F;
-        eyeR.y = -6.0F + Mth.cos(age * 0.29F + 1.0F) * 0.3F;
+        eyeL.x = 2.5F + tw * 0.3F;
+        eyeR.x = -2.5F + tw * 0.3F;
+        eyeL.y = -7.5F + Mth.cos(age * 0.29F) * 0.25F;
+        eyeR.y = -7.5F + Mth.cos(age * 0.29F + 1.0F) * 0.25F;
     }
 
     // ------------------------------------------------------------------ farewell routine
