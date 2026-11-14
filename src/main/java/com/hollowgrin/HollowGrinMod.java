@@ -1,5 +1,6 @@
 package com.hollowgrin;
 
+import com.hollowgrin.games.MiniGames;
 import com.hollowgrin.network.ModNetwork;
 import com.hollowgrin.registry.ModEntities;
 import com.hollowgrin.registry.ModItems;
@@ -27,5 +28,6 @@ public class HollowGrinMod {
         MinecraftForge.EVENT_BUS.register(new HollowEvents());
         MinecraftForge.EVENT_BUS.register(new IntroEvents());
         MinecraftForge.EVENT_BUS.register(new DogEvents());
+        MinecraftForge.EVENT_BUS.register(new MiniGames());
     }
 }

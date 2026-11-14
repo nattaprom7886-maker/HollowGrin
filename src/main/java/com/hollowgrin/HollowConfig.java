@@ -15,6 +15,9 @@ public final class HollowConfig {
     public static final ForgeConfigSpec.BooleanValue INTRO_ENABLED;
     public static final ForgeConfigSpec.BooleanValue DOG_TRICK;
     public static final ForgeConfigSpec.IntValue DOG_AWAY_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue GAMES_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue GAME_REWARDS;
+    public static final ForgeConfigSpec.IntValue GAME_REWARD_COOLDOWN;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -41,6 +44,12 @@ public final class HollowConfig {
                 .define("dogTrick", true);
         DOG_AWAY_SECONDS = b.comment("Seconds you must stay away (28+ blocks) from your sitting dog before he may take it.")
                 .defineInRange("dogAwaySeconds", 20, 5, 3600);
+        GAMES_ENABLED = b.comment("Mr. Hollowgrin's mini games (/hollowgames, /hgames). false = the command does nothing.")
+                .define("gamesEnabled", true);
+        GAME_REWARDS = b.comment("Winning a mini game gives a small prize (diamond / emeralds / golden apples). Never given in Creative.")
+                .define("gameRewards", true);
+        GAME_REWARD_COOLDOWN = b.comment("Seconds before the same mini game can give its prize to the same player again (stops farming).")
+                .defineInRange("gameRewardCooldown", 600, 0, 100000);
         b.pop();
         SPEC = b.build();
     }
