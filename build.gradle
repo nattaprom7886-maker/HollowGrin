@@ -1,68 +1,38 @@
 plugins {
     id 'eclipse'
-    id 'idea'
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
 
-version = mod_version
-group = mod_group_id
-
-base {
-    archivesName = mod_id
-}
+version = '1.0.0'
+group = 'com.example.familysearch'
+base { archivesName = 'familysearch' }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 minecraft {
-    mappings channel: mapping_channel, version: mapping_version
-    copyIdeResources = true
-
+    mappings channel: 'official', version: '1.20.1'
     runs {
-        configureEach {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
-            }
-        }
         client {
-            property 'forge.enabledGameTestNamespaces', mod_id
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            mods { familysearch { source sourceSets.main } }
         }
         server {
-            property 'forge.enabledGameTestNamespaces', mod_id
+            workingDirectory project.file('run-server')
+            property 'forge.logging.console.level', 'debug'
             args '--nogui'
+            mods { familysearch { source sourceSets.main } }
         }
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-repositories {
-}
+repositories { }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    minecraft 'net.minecraftforge:forge:1.20.1-47.3.0'
 }
 
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : 'Hollowgrin',
-                'Specification-Version'   : '1',
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : 'Hollowgrin',
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-    finalizedBy 'reobfJar'
-}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
+jar.finalizedBy('reobfJar')

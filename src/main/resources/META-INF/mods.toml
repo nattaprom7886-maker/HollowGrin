@@ -1,23 +1,21 @@
 modLoader="javafml"
 loaderVersion="[47,)"
-license="All Rights Reserved"
+license="MIT"
 
 [[mods]]
-modId="hollowgrin"
-version="1.8.0"
-displayName="Mr. Hollowgrin"
-description='''
-The Gracious Host. One entity, many faces. He walks among villagers, waiting for you to look.
-'''
+modId="familysearch"
+version="1.0.0"
+displayName="ตามหาครอบครัว"
+description='''เรื่องราวของชายคนหนึ่งที่ภรรยาและลูกจากไป ภารกิจคือออกตามหาพวกเขา'''
 
-[[dependencies.hollowgrin]]
+[[dependencies.familysearch]]
 modId="forge"
 mandatory=true
 versionRange="[47,)"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.hollowgrin]]
+[[dependencies.familysearch]]
 modId="minecraft"
 mandatory=true
 versionRange="[1.20.1,1.21)"
